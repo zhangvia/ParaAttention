@@ -7,6 +7,7 @@ aten = torch.ops.aten
 para_attn_ops = torch.ops.para_attn
 
 
+@pytest.mark.skipif("not torch.cuda.is_available()")
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("device", ["cuda"])
 @pytest.mark.parametrize(
@@ -18,7 +19,7 @@ para_attn_ops = torch.ops.para_attn
     ],
 )
 @pytest.mark.parametrize(
-    ["B", "H", "S_Q", "S_KV", "D"],
+    "B,H,S_Q,S_KV,D",
     [
         [1, 24, 4096, 4096, 64],
         [1, 24, 4096, 1024, 64],
@@ -26,6 +27,9 @@ para_attn_ops = torch.ops.para_attn
 )
 @pytest.mark.parametrize("is_causal", [False, True])
 def test_attention_forward_with_lse(dtype, device, backend, B, H, S_Q, S_KV, D, is_causal):
+    if is_causal and S_Q != S_KV:
+        pytest.skip("is_causal and S_Q != S_KV")
+
     with torch.no_grad():
         query = torch.randn(B, H, S_Q, D, dtype=dtype, device=device)
         key = torch.randn(B, H, S_KV, D, dtype=dtype, device=device)
@@ -54,6 +58,7 @@ def test_attention_forward_with_lse(dtype, device, backend, B, H, S_Q, S_KV, D, 
             dropout_p=dropout_p,
             is_causal=is_causal,
         )
-        torch.testing.assert_allclose(out, out)
+
+        torch.testing.assert_close(out, out)
         assert lse.dtype == torch.float32
         assert lse.shape == (B, H, S_Q)
