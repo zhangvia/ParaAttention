@@ -116,8 +116,8 @@ def _attention_forward_with_lse(
     scale: Optional[float] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     device = query.device
-    assert device.type == "cuda", "dispatch_fastest_attention_impl only supports CUDA tensors"
-    assert torch.version.hip is None, "dispatch_fastest_attention_impl does not support HIP devices"
+    assert device.type == "cuda", "Must be CUDA tensors"
+    assert torch.version.hip is None, "HIP is not supported"
     params_init_args = [
         query,
         key,
@@ -145,7 +145,7 @@ def _attention_forward_with_lse(
             return dispatch[2](
                 query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale
             )
-    raise NotImplementedError("No available implementation for dispatch_fastest_attention_impl")
+    raise NotImplementedError
 
 
 @_torch_custom_op_wrapper("para_attn::attention_forward_with_lse", mutates_args=(), device_types="cuda")
