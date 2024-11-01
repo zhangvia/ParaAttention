@@ -1,17 +1,17 @@
 [project]
 
-name = "akvattn"
+name = "para-attn"
 # version = "0.0.1"  # Remove any existing version parameter.
 dynamic = ["version", "dependencies", "optional-dependencies"]
 requires-python = ">=3.8"
 authors = [
     {name = "Zeyi Cheng", email = "ichengzeyi@gmail.com"},
 ]
-description = "Sequence Parallel Attention with Asynchronous Key Value Gathering"
+description = "Context parallel attention that works with torch.compile"
 
 [project.urls]
 
-Repository = "https://github.com/chengzeyi/AsyncKVAttention"
+Repository = "https://github.com/chengzeyi/ParaAttention"
 
 [build-system]
 

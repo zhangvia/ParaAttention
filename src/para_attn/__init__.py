@@ -1,4 +1,4 @@
-from . import ops  # noqa: F401
+from . import config, ops  # noqa: F401
 
 try:
     from ._version import version as __version__, version_tuple
