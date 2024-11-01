@@ -28,6 +28,8 @@ dtype = torch.float16
 device = "cuda"
 
 with torch.no_grad(), torch.cuda.device(rank):
+    torch.manual_seed(0)
+
     query = torch.randn(B, H, S_Q, D, dtype=dtype, device=device)
     key = torch.randn(B, H, S_KV, D, dtype=dtype, device=device)
     value = torch.randn(B, H, S_KV, D, dtype=dtype, device=device)
