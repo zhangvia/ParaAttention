@@ -24,7 +24,8 @@ class RingAttnTest(DTensorTestBase):
         ],
     )
     @parametrize("is_causal", [False, True])
-    def test_ring_attn_func(self, dtype, device, B, H, S_Q, S_KV, D, is_causal):
+    @parametrize("compile", [False, True])
+    def test_ring_attn_func(self, dtype, device, B, H, S_Q, S_KV, D, is_causal, compile):
         if is_causal and S_Q != S_KV:
             return
 
@@ -42,7 +43,11 @@ class RingAttnTest(DTensorTestBase):
             key_slice = key.chunk(self.world_size, dim=-1)[self.rank]
             value_slice = value.chunk(self.world_size, dim=-1)[self.rank]
 
-            out_slice = para_attn_interface.ring_attn_func(
+            ring_attn_func = para_attn_interface.ring_attn_func
+            if compile:
+                ring_attn_func = torch.compile(ring_attn_func, fullgraph=True)
+
+            out_slice = ring_attn_func(
                 query_slice,
                 key_slice,
                 value_slice,

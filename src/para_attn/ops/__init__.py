@@ -105,8 +105,7 @@ def cudnn_attention_forward_with_lse(
     )[:2]
 
 
-@_torch_custom_op_wrapper("para_attn::attention_forward_with_lse", mutates_args=(), device_types="cuda")
-def attention_forward_with_lse(
+def _attention_forward_with_lse(
     query: torch.Tensor,
     key: torch.Tensor,
     value: torch.Tensor,
@@ -149,6 +148,28 @@ def attention_forward_with_lse(
     raise NotImplementedError("No available implementation for dispatch_fastest_attention_impl")
 
 
+@_torch_custom_op_wrapper("para_attn::attention_forward_with_lse", mutates_args=(), device_types="cuda")
+def attention_forward_with_lse(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attn_mask: Optional[torch.Tensor] = None,
+    dropout_p: float = 0.0,
+    is_causal: bool = False,
+    *,
+    scale: Optional[float] = None,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    return _attention_forward_with_lse(
+        query,
+        key,
+        value,
+        attn_mask=attn_mask,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
+    )
+
+
 @_torch_register_fake_wrapper("para_attn::attention_forward_with_lse")
 def _(
     query: torch.Tensor,
@@ -160,7 +181,7 @@ def _(
     *,
     scale: Optional[float] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    return attention_forward_with_lse(
+    return _attention_forward_with_lse(
         query,
         key,
         value,
