@@ -59,9 +59,9 @@ with torch.no_grad(), torch.cuda.device(rank):
     dropout_p = 0.0
     is_causal = False
 
-    query_slice = query.chunk(world_size, dim=-1)[rank]
-    key_slice = key.chunk(world_size, dim=-1)[rank]
-    value_slice = value.chunk(world_size, dim=-1)[rank]
+    query_slice = query.chunk(world_size, dim=-2)[rank]
+    key_slice = key.chunk(world_size, dim=-2)[rank]
+    value_slice = value.chunk(world_size, dim=-2)[rank]
 
     ring_attn_func = para_attn_interface.ring_attn_func
     ring_attn_func = torch.compile(ring_attn_func, fullgraph=True)
