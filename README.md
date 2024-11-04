@@ -7,6 +7,28 @@ This aims to include:
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
 - [x] The ability to run context parallel attention in a unified interface, as well as keeping the maximum performance while working with `torch.compile`
 
+# Installation
+
+```bash
+git clone https://github.com/chengzeyi/ParaAttention.git
+cd ParaAttention
+git submodule update --init --recursive
+
+pip3 install 'torch==2.5.0'
+pip3 install packaging wheel 'setuptools>=64' 'setuptools_scm>=8'
+
+# Pass --no-use-pep517 to speed up rebuild by using the legacy build system
+# which doesn't use a one-time tmp directory for the build
+pip3 install -e '.[dev]' --no-build-isolation
+# Or:
+# python3 setup.py develop
+
+# Code formatting and linting
+pip3 install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
 # Usage
 
 ## Run RingAttention with `torch.compile`
