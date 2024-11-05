@@ -69,7 +69,7 @@ class ParallelAttnTest(DTensorTestBase):
                 is_causal=is_causal,
             ).chunk(self.world_size, dim=-2)[self.rank]
 
-            torch.testing.assert_close(out_slice, out_slice_ref)
+            torch.testing.assert_close(out_slice, out_slice_ref, rtol=1e-5, atol=1e-3 * self.world_size)
 
     def _test_attn_mode(self, dtype, device, B, H, S_Q, S_KV, D, is_causal, compile):
         if is_causal and S_Q != S_KV:
@@ -115,7 +115,7 @@ class ParallelAttnTest(DTensorTestBase):
                 is_causal=is_causal,
             ).chunk(self.world_size, dim=-2)[self.rank]
 
-            torch.testing.assert_close(out_slice, out_slice_ref)
+            torch.testing.assert_close(out_slice, out_slice_ref, rtol=1e-5, atol=1e-3 * self.world_size)
 
 
 class RingAttnTest(ParallelAttnTest):

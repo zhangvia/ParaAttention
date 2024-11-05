@@ -94,7 +94,7 @@ with torch.no_grad(), torch.cuda.device(rank):
         is_causal=is_causal,
     )
 
-    torch.testing.assert_close(out_slice, out_slice_ref)
+    torch.testing.assert_close(out_slice, out_slice_ref, rtol=1e-5, atol=1e-3 * world_size)
 
 dist.destroy_process_group()
 ```
