@@ -31,6 +31,15 @@ def _maybe_wait(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
+def _sdpa_all_to_all_single(x, mesh):
+    if x.requires_grad:
+        x = ft_c.all_to_all_single_autograd(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
+    else:
+        x = ft_c.all_to_all_single(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
+    x = _maybe_wait(x)
+    return x
+
+
 def _sdpa_input_all_to_all(x, mesh):
     if isinstance(mesh, dist.ProcessGroup):
         pg: Union[dist.ProcessGroup, List[dist.ProcessGroup]] = mesh
@@ -46,11 +55,7 @@ def _sdpa_input_all_to_all(x, mesh):
     assert h % world_size == 0, "h must be divisible by world_size, got {} and {}".format(h, world_size)
 
     x = x.permute(1, 0, 2, 3).contiguous()
-    if x.requires_grad:
-        x = ft_c.all_to_all_single_autograd(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
-    else:
-        x = ft_c.all_to_all_single(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
-    x = _maybe_wait(x)
+    x = _sdpa_all_to_all_single(x, mesh)
     x = x.reshape(world_size, h // world_size, b, -1, d).permute(2, 1, 0, 3, 4).reshape(b, h // world_size, -1, d)
     return x
 
@@ -70,11 +75,7 @@ def _sdpa_output_all_to_all(x, mesh):
     assert s % world_size == 0, "s must be divisible by world_size, got {} and {}".format(s, world_size)
 
     x = x.permute(2, 0, 1, 3).contiguous()
-    if x.requires_grad:
-        x = ft_c.all_to_all_single_autograd(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
-    else:
-        x = ft_c.all_to_all_single(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
-    x = _maybe_wait(x)
+    x = _sdpa_all_to_all_single(x, mesh)
     x = x.reshape(world_size, s // world_size, b, -1, d).permute(2, 0, 3, 1, 4).reshape(b, -1, s // world_size, d)
     return x
 
