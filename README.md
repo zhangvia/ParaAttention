@@ -2,10 +2,10 @@
 
 Context parallel attention that works with torch.compile
 
-This aims to include:
+This aims to provide:
 
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
-- [x] The ability to run context parallel attention in a unified interface, as well as keeping the maximum performance while working with `torch.compile`
+- [x] A unified interface to run context parallel attention, as well as keeping the maximum performance while working with `torch.compile`
 
 # Installation
 
@@ -31,12 +31,13 @@ pre-commit run --all-files
 
 # Usage
 
-## Run RingAttention with `torch.compile`
+## Run Unified Attention (Ulysses Style and Ring Style) with `torch.compile`
 
 ``` python
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
+from torch.distributed import init_device_mesh
 from para_attn import para_attn_interface
 
 dist.init_process_group()
@@ -44,6 +45,10 @@ world_size = dist.get_world_size()
 rank = dist.get_rank()
 
 assert world_size <= torch.cuda.device_count()
+if world_size % 2 == 0:
+    mesh_shape = (world_size // 2, 2)
+else:
+    mesh_shape = (world_size, 1)
 
 B, H, S_Q, S_KV, D = 1, 24, 4096, 4096, 64
 dtype = torch.float16
@@ -63,17 +68,22 @@ with torch.no_grad(), torch.cuda.device(rank):
     key_slice = key.chunk(world_size, dim=-2)[rank]
     value_slice = value.chunk(world_size, dim=-2)[rank]
 
-    ring_attn_func = para_attn_interface.ring_attn_func
-    ring_attn_func = torch.compile(ring_attn_func, fullgraph=True)
+    def func(*args, **kwargs):
+        return F.scaled_dot_product_attention(*args, **kwargs)
 
-    out_slice = ring_attn_func(
-        query_slice,
-        key_slice,
-        value_slice,
-        attn_mask=attn_mask,
-        dropout_p=dropout_p,
-        is_causal=is_causal,
-    )
+    func = torch.compile(func, fullgraph=True)
+
+    for _ in range(2):
+        mesh = init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
+        with para_attn_interface.UnifiedAttnMode(mesh):
+            out_slice = func(
+                query_slice,
+                key_slice,
+                value_slice,
+                attn_mask=attn_mask,
+                dropout_p=dropout_p,
+                is_causal=is_causal,
+            )
 
     out_slice_ref = F.scaled_dot_product_attention(
         query_slice,

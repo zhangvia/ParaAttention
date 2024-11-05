@@ -10,9 +10,9 @@ _save_config_ignore = {
 
 
 class attention:
-    prefer_reduced_precision_reduction = os.getenv("AKVATTN_PREFER_REDUCED_PRECISION_REDUCTION") == "1"
+    allow_reduced_precision_compute = os.getenv("PARA_ATTN_ALLOW_REDUCED_PRECISION_COMPUTE") == "1"
 
-    fast_math = os.getenv("AKVATTN_FAST_MATH") == "1"
+    fast_math = os.getenv("PARA_ATTN_FAST_MATH") == "1"
 
 
 try:
