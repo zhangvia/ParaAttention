@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from para_attn import para_attn_interface
 from torch.distributed.device_mesh import init_device_mesh
-from torch.testing._internal.common_utils import instantiate_parametrized_tests, parametrize
+from torch.testing._internal.common_utils import instantiate_parametrized_tests, parametrize, run_tests
 from torch.testing._internal.distributed._tensor.common_dtensor import DTensorTestBase, with_comms
 
 
@@ -230,3 +230,6 @@ class UnifiedAttnTest(ParallelAttnTest):
 instantiate_parametrized_tests(RingAttnTest)
 instantiate_parametrized_tests(UlyssesAttnTest)
 instantiate_parametrized_tests(UnifiedAttnTest)
+
+if __name__ == "__main__":
+    run_tests()
