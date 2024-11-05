@@ -21,6 +21,16 @@ __all__ = [
 ]
 
 
+def _maybe_wait(tensor: torch.Tensor) -> torch.Tensor:
+    """
+    When tracing the code, the result tensor is not an AsyncCollectiveTensor,
+    so we cannot call ``wait()``.
+    """
+    if isinstance(tensor, ft_c.AsyncCollectiveTensor):
+        return tensor.wait()
+    return tensor
+
+
 def _sdpa_input_all_to_all(x, mesh):
     if isinstance(mesh, dist.ProcessGroup):
         pg: Union[dist.ProcessGroup, List[dist.ProcessGroup]] = mesh
@@ -40,7 +50,7 @@ def _sdpa_input_all_to_all(x, mesh):
         x = ft_c.all_to_all_single_autograd(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
     else:
         x = ft_c.all_to_all_single(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
-    x = ft_c.wait_tensor(x)
+    x = _maybe_wait(x)
     x = x.reshape(world_size, h // world_size, b, -1, d).permute(2, 1, 0, 3, 4).reshape(b, h // world_size, -1, d)
     return x
 
@@ -64,7 +74,7 @@ def _sdpa_output_all_to_all(x, mesh):
         x = ft_c.all_to_all_single_autograd(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
     else:
         x = ft_c.all_to_all_single(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
-    x = ft_c.wait_tensor(x)
+    x = _maybe_wait(x)
     x = x.reshape(world_size, s // world_size, b, -1, d).permute(2, 0, 3, 1, 4).reshape(b, -1, s // world_size, d)
     return x
 
