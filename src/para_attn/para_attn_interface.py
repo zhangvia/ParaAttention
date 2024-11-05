@@ -114,6 +114,25 @@ class RingAttnFunc(torch.autograd.Function):
         is_causal,
         scale,
     ):
+        if mesh is None:
+            mesh = c10d._get_default_group()
+        if isinstance(mesh, dist.ProcessGroup):
+            pg: Union[dist.ProcessGroup, List[dist.ProcessGroup]] = mesh
+        else:
+            pg = mesh.get_group()
+        assert isinstance(pg, dist.ProcessGroup), "process group must be single dimension"
+        world_size = dist.get_world_size(pg)
+        if world_size <= 1:
+            return F.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=attn_mask,
+                dropout_p=dropout_p,
+                is_causal=is_causal,
+                scale=scale,
+            )
+
         out, lse = _templated_ring_attention(
             mesh,
             para_attn_ops.attention_forward_with_lse,
@@ -185,26 +204,50 @@ class RingAttnMode(TorchFunctionMode):
     def __init__(self, mesh=None):
         super().__init__()
         self._mesh = mesh
+        self._inside_func = False
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
-            return ring_attn_func(*args, **kwargs, mesh=self._mesh)
+        if not self._inside_func:
+            if func is torch.nn.functional.scaled_dot_product_attention:
+                with self._set_inside_func():
+                    return ring_attn_func(*args, **kwargs, mesh=self._mesh)
         return func(*args, **kwargs)
+
+    @contextlib.contextmanager
+    def _set_inside_func(self):
+        old_inside_func = self._inside_func
+        self._inside_func = True
+        try:
+            yield
+        finally:
+            self._inside_func = old_inside_func
 
 
 class UlyssesAttnMode(TorchFunctionMode):
     def __init__(self, mesh=None):
         super().__init__()
         self._mesh = mesh
+        self._inside_func = False
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
-            return ulysses_attn_func(*args, **kwargs, mesh=self._mesh)
+        if not self._inside_func:
+            if func is torch.nn.functional.scaled_dot_product_attention:
+                with self._set_inside_func():
+                    return ulysses_attn_func(*args, **kwargs, mesh=self._mesh)
         return func(*args, **kwargs)
+
+    @contextlib.contextmanager
+    def _set_inside_func(self):
+        old_inside_func = self._inside_func
+        self._inside_func = True
+        try:
+            yield
+        finally:
+            self._inside_func = old_inside_func
 
 
 class UnifiedAttnMode(TorchFunctionMode):
@@ -225,7 +268,10 @@ class UnifiedAttnMode(TorchFunctionMode):
                 with self._set_parallel_method("ring"):
                     return ulysses_attn_func(*args, **kwargs, mesh=self._ulysses_mesh)
             elif parallel_method == "ring":
-                return ring_attn_func(*args, **kwargs, mesh=self._ring_mesh)
+                with self._set_parallel_method("none"):
+                    return ring_attn_func(*args, **kwargs, mesh=self._ring_mesh)
+            elif parallel_method == "none":
+                return func(*args, **kwargs)
             else:
                 raise ValueError(f"Unknown parallel method: {parallel_method}")
 

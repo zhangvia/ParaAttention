@@ -164,7 +164,6 @@ class UlyssesAttnTest(ParallelAttnTest):
     def attn_func(self):
         return para_attn_interface.ulysses_attn_func
 
-    @property
     def attn_mode(self, device):
         return para_attn_interface.UlyssesAttnMode()
 
