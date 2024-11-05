@@ -61,13 +61,13 @@ class ParallelAttnTest(DTensorTestBase):
                 )
 
             out_slice_ref = F.scaled_dot_product_attention(
-                query_slice,
+                query,
                 key,
                 value,
                 attn_mask=attn_mask,
                 dropout_p=dropout_p,
                 is_causal=is_causal,
-            )
+            ).chunk(self.world_size, dim=-2)[self.rank]
 
             torch.testing.assert_close(out_slice, out_slice_ref)
 
@@ -107,13 +107,13 @@ class ParallelAttnTest(DTensorTestBase):
                     )
 
             out_slice_ref = F.scaled_dot_product_attention(
-                query_slice,
+                query,
                 key,
                 value,
                 attn_mask=attn_mask,
                 dropout_p=dropout_p,
                 is_causal=is_causal,
-            )
+            ).chunk(self.world_size, dim=-2)[self.rank]
 
             torch.testing.assert_close(out_slice, out_slice_ref)
 

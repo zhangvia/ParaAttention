@@ -53,7 +53,12 @@ def flash_attention_forward_with_lse(
     scale: Optional[float] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     return aten._scaled_dot_product_flash_attention(
-        query, key, value, dropout_p=dropout_p, is_causal=is_causal, scale=scale
+        query,
+        key,
+        value,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
     )[:2]
 
 

@@ -80,7 +80,7 @@ def ulysses_attn_func(
     scale=None,
     mesh=None,
 ):
-    assert attn_mask is None, "attn_mask is not supported in UlyssesAttentionMode"
+    assert attn_mask is None, "attn_mask is not supported in ulysses_attn_func"
 
     assert query.ndim == 4, "query must have 4 dimensions, got {}".format(query.ndim)
     assert key.ndim == 4, "key must have 4 dimensions, got {}".format(key.ndim)
@@ -105,7 +105,6 @@ class RingAttnFunc(torch.autograd.Function):
     @staticmethod
     def forward(
         ctx,
-        mesh,
         query,
         key,
         value,
@@ -113,6 +112,7 @@ class RingAttnFunc(torch.autograd.Function):
         dropout_p,
         is_causal,
         scale,
+        mesh,
     ):
         if mesh is None:
             mesh = c10d._get_default_group()
@@ -162,10 +162,11 @@ def ring_attn_func(
     scale=None,
     mesh=None,
 ):
+    assert attn_mask is None, "attn_mask is not supported in ring_attn_func"
+
     if mesh is None:
         mesh = c10d._get_default_group()
     return RingAttnFunc.apply(
-        mesh,
         query,
         key,
         value,
@@ -173,6 +174,7 @@ def ring_attn_func(
         dropout_p,
         is_causal,
         scale,
+        mesh,
     )
 
 
