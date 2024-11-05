@@ -7,10 +7,6 @@ from torch.backends.cuda import SDPAParams
 aten = torch.ops.aten
 
 
-def can_use_attention_backend(*args, **kwargs):
-    return True
-
-
 def cannot_use_attention_backend(*args, **kwargs):
     return False
 
