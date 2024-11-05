@@ -48,7 +48,7 @@ class ParallelAttnTest(DTensorTestBase):
 
             func = self.attn_func
             if compile:
-                func = torch.compile(func, fullgraph=True)
+                func = torch.compile(func)
 
             for _ in range(2 if compile else 1):
                 out_slice = func(
@@ -93,7 +93,7 @@ class ParallelAttnTest(DTensorTestBase):
                 return F.scaled_dot_product_attention(*args, **kwargs)
 
             if compile:
-                func = torch.compile(func, fullgraph=True)
+                func = torch.compile(func)
 
             for _ in range(2 if compile else 1):
                 with self.attn_mode(device):

@@ -71,7 +71,7 @@ with torch.no_grad(), torch.cuda.device(rank):
     def func(*args, **kwargs):
         return F.scaled_dot_product_attention(*args, **kwargs)
 
-    func = torch.compile(func, fullgraph=True)
+    func = torch.compile(func)
 
     for _ in range(2):
         mesh = init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
