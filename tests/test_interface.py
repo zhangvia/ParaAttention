@@ -42,9 +42,9 @@ class ParallelAttnTest(DTensorTestBase):
             dropout_p = 0.0
             is_causal = is_causal
 
-            query_slice = query.chunk(self.world_size, dim=-1)[self.rank]
-            key_slice = key.chunk(self.world_size, dim=-1)[self.rank]
-            value_slice = value.chunk(self.world_size, dim=-1)[self.rank]
+            query_slice = query.chunk(self.world_size, dim=-2)[self.rank]
+            key_slice = key.chunk(self.world_size, dim=-2)[self.rank]
+            value_slice = value.chunk(self.world_size, dim=-2)[self.rank]
 
             func = self.attn_func
             if compile:
@@ -85,9 +85,9 @@ class ParallelAttnTest(DTensorTestBase):
             dropout_p = 0.0
             is_causal = is_causal
 
-            query_slice = query.chunk(self.world_size, dim=-1)[self.rank]
-            key_slice = key.chunk(self.world_size, dim=-1)[self.rank]
-            value_slice = value.chunk(self.world_size, dim=-1)[self.rank]
+            query_slice = query.chunk(self.world_size, dim=-2)[self.rank]
+            key_slice = key.chunk(self.world_size, dim=-2)[self.rank]
+            value_slice = value.chunk(self.world_size, dim=-2)[self.rank]
 
             def func(*args, **kwargs):
                 return F.scaled_dot_product_attention(*args, **kwargs)
@@ -133,8 +133,8 @@ class RingAttnTest(ParallelAttnTest):
     @parametrize(
         "B,H,S_Q,S_KV,D",
         [
-            [1, 24, 4096, 4096, 64],
-            [1, 24, 4096, 1024, 64],
+            [2, 24, 4096, 4096, 64],
+            [2, 24, 4096, 1024, 64],
         ],
     )
     @parametrize("is_causal", [False, True])
@@ -149,8 +149,8 @@ class RingAttnTest(ParallelAttnTest):
     @parametrize(
         "B,H,S_Q,S_KV,D",
         [
-            [1, 24, 4096, 4096, 64],
-            [1, 24, 4096, 1024, 64],
+            [2, 24, 4096, 4096, 64],
+            [2, 24, 4096, 1024, 64],
         ],
     )
     @parametrize("is_causal", [False, True])
@@ -174,8 +174,8 @@ class UlyssesAttnTest(ParallelAttnTest):
     @parametrize(
         "B,H,S_Q,S_KV,D",
         [
-            [1, 24, 4096, 4096, 64],
-            [1, 24, 4096, 1024, 64],
+            [2, 24, 4096, 4096, 64],
+            [2, 24, 4096, 1024, 64],
         ],
     )
     @parametrize("is_causal", [False, True])
@@ -190,8 +190,8 @@ class UlyssesAttnTest(ParallelAttnTest):
     @parametrize(
         "B,H,S_Q,S_KV,D",
         [
-            [1, 24, 4096, 4096, 64],
-            [1, 24, 4096, 1024, 64],
+            [2, 24, 4096, 4096, 64],
+            [2, 24, 4096, 1024, 64],
         ],
     )
     @parametrize("is_causal", [False, True])
@@ -217,8 +217,8 @@ class UnifiedAttnTest(ParallelAttnTest):
     @parametrize(
         "B,H,S_Q,S_KV,D",
         [
-            [1, 24, 4096, 4096, 64],
-            [1, 24, 4096, 1024, 64],
+            [2, 24, 4096, 4096, 64],
+            [2, 24, 4096, 1024, 64],
         ],
     )
     @parametrize("is_causal", [False, True])

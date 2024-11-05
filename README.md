@@ -50,7 +50,7 @@ if world_size % 2 == 0:
 else:
     mesh_shape = (world_size, 1)
 
-B, H, S_Q, S_KV, D = 1, 24, 4096, 4096, 64
+B, H, S_Q, S_KV, D = 2, 24, 4096, 4096, 64
 dtype = torch.float16
 device = "cuda"
 
