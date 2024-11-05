@@ -223,25 +223,13 @@ class RingAttnMode(TorchFunctionMode):
     def __init__(self, mesh=None):
         super().__init__()
         self._mesh = mesh
-        self._inside_func = False
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if not self._inside_func:
-            if func is torch.nn.functional.scaled_dot_product_attention:
-                with self._set_inside_func():
-                    return ring_attn_func(*args, **kwargs, mesh=self._mesh)
+        if func is torch.nn.functional.scaled_dot_product_attention:
+            return ring_attn_func(*args, **kwargs, mesh=self._mesh)
         return func(*args, **kwargs)
-
-    @contextlib.contextmanager
-    def _set_inside_func(self):
-        old_inside_func = self._inside_func
-        self._inside_func = True
-        try:
-            yield
-        finally:
-            self._inside_func = old_inside_func
 
 
 class UlyssesAttnMode(TorchFunctionMode):
@@ -253,20 +241,9 @@ class UlyssesAttnMode(TorchFunctionMode):
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if not self._inside_func:
-            if func is torch.nn.functional.scaled_dot_product_attention:
-                with self._set_inside_func():
-                    return ulysses_attn_func(*args, **kwargs, mesh=self._mesh)
+        if func is torch.nn.functional.scaled_dot_product_attention:
+            return ulysses_attn_func(*args, **kwargs, mesh=self._mesh)
         return func(*args, **kwargs)
-
-    @contextlib.contextmanager
-    def _set_inside_func(self):
-        old_inside_func = self._inside_func
-        self._inside_func = True
-        try:
-            yield
-        finally:
-            self._inside_func = old_inside_func
 
 
 class UnifiedAttnMode(TorchFunctionMode):
@@ -284,10 +261,10 @@ class UnifiedAttnMode(TorchFunctionMode):
         if func is torch.nn.functional.scaled_dot_product_attention:
             parallel_method = self._parallel_method
             if parallel_method == "ulysses":
-                with self._set_parallel_method("ring"):
+                with self._set_parallel_method("ring"), self:
                     return ulysses_attn_func(*args, **kwargs, mesh=self._ulysses_mesh)
             elif parallel_method == "ring":
-                with self._set_parallel_method("none"):
+                with self._set_parallel_method("none"), self:
                     return ring_attn_func(*args, **kwargs, mesh=self._ring_mesh)
             elif parallel_method == "none":
                 return func(*args, **kwargs)
