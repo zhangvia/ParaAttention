@@ -55,7 +55,10 @@ def _sdpa_input_all_to_all(x, mesh):
     assert h % world_size == 0, "h must be divisible by world_size, got {} and {}".format(h, world_size)
 
     x = x.permute(1, 0, 2, 3).contiguous()
+    x_shape = x.shape
+    x = x.flatten()
     x = _sdpa_all_to_all_single(x, mesh)
+    x = x.reshape(x_shape)
     x = x.reshape(world_size, h // world_size, b, -1, d).permute(2, 1, 0, 3, 4).reshape(b, h // world_size, -1, d)
     return x
 
@@ -75,7 +78,10 @@ def _sdpa_output_all_to_all(x, mesh):
     assert s % world_size == 0, "s must be divisible by world_size, got {} and {}".format(s, world_size)
 
     x = x.permute(2, 0, 1, 3).contiguous()
+    x_shape = x.shape
+    x = x.flatten()
     x = _sdpa_all_to_all_single(x, mesh)
+    x = x.reshape(x_shape)
     x = x.reshape(world_size, s // world_size, b, -1, d).permute(2, 0, 3, 1, 4).reshape(b, -1, s // world_size, d)
     return x
 
