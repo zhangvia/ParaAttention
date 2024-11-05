@@ -86,13 +86,13 @@ with torch.no_grad(), torch.cuda.device(rank):
             )
 
     out_slice_ref = F.scaled_dot_product_attention(
-        query_slice,
+        query,
         key,
         value,
         attn_mask=attn_mask,
         dropout_p=dropout_p,
         is_causal=is_causal,
-    )
+    ).chunk(world_size, dim=-2)[rank]
 
     torch.testing.assert_close(out_slice, out_slice_ref, rtol=1e-5, atol=1e-3 * world_size)
 
