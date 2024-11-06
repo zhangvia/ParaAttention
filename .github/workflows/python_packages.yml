@@ -66,7 +66,7 @@ jobs:
       - run: ls -R dist/
 
       # create night release if it's a push to main
-      - if: github.repository == 'chengzeyi/piflux' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - if: github.repository == 'chengzeyi/ParaAttention' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         name: Nightly Release
         uses: andelf/nightly-release@v1
         env:
@@ -81,7 +81,7 @@ jobs:
             dist/*/*.tar.gz
 
       # create release if it's a tag like vx.y.z
-      - if: github.repository == 'chengzeyi/piflux' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
+      - if: github.repository == 'chengzeyi/ParaAttention' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
         name: Release
         uses: softprops/action-gh-release@v1
         with :
