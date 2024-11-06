@@ -1,6 +1,7 @@
 # ParaAttention
 
-Context parallel attention that works with torch.compile
+Context parallel attention that works with torch.compile,
+supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Ring Style**](https://arxiv.org/abs/2310.01889) parallelism.
 
 This aims to provide:
 
@@ -31,7 +32,7 @@ pre-commit run --all-files
 
 # Usage
 
-## Run Unified Attention (Ulysses Style and Ring Style) with `torch.compile`
+## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
 
 ``` python
 import torch

@@ -131,25 +131,6 @@ class RingAttnFunc(torch.autograd.Function):
         scale,
         mesh,
     ):
-        if mesh is None:
-            mesh = c10d._get_default_group()
-        if isinstance(mesh, dist.ProcessGroup):
-            pg: Union[dist.ProcessGroup, List[dist.ProcessGroup]] = mesh
-        else:
-            pg = mesh.get_group()
-        assert isinstance(pg, dist.ProcessGroup), "process group must be single dimension"
-        world_size = dist.get_world_size(pg)
-        if world_size <= 1:
-            return F.scaled_dot_product_attention(
-                query,
-                key,
-                value,
-                attn_mask=attn_mask,
-                dropout_p=dropout_p,
-                is_causal=is_causal,
-                scale=scale,
-            )
-
         out, lse = _templated_ring_attention(
             mesh,
             para_attn_ops.attention_forward_with_lse,
@@ -183,6 +164,23 @@ def ring_attn_func(
 
     if mesh is None:
         mesh = c10d._get_default_group()
+    if isinstance(mesh, dist.ProcessGroup):
+        pg: Union[dist.ProcessGroup, List[dist.ProcessGroup]] = mesh
+    else:
+        pg = mesh.get_group()
+    assert isinstance(pg, dist.ProcessGroup), "process group must be single dimension"
+    world_size = dist.get_world_size(pg)
+    if world_size <= 1:
+        return F.scaled_dot_product_attention(
+            query,
+            key,
+            value,
+            attn_mask=attn_mask,
+            dropout_p=dropout_p,
+            is_causal=is_causal,
+            scale=scale,
+        )
+
     return RingAttnFunc.apply(
         query,
         key,
