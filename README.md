@@ -10,13 +10,22 @@ This aims to provide:
 
 # Installation
 
+## Install from PyPI
+
+```bash
+pip3 install 'torch==2.5.0'
+pip3 install para-attn
+```
+
+## Local Installation
+
 ```bash
 git clone https://github.com/chengzeyi/ParaAttention.git
 cd ParaAttention
 git submodule update --init --recursive
 
 pip3 install 'torch==2.5.0'
-pip3 install packaging wheel 'setuptools>=64' 'setuptools_scm>=8'
+pip3 install 'setuptools>=64' 'setuptools_scm>=8'
 
 # Pass --no-use-pep517 to speed up rebuild by using the legacy build system
 # which doesn't use a one-time tmp directory for the build
