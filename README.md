@@ -40,6 +40,12 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+# Performance
+
+| Model | Method | Wall Time (s) | Speedup |
+| --- | --- | --- | --- |
+| FLUX.1-dev | Baseline | 0.8 | 1x |
+
 # Usage
 
 ## Run FLUX.1-dev with Parallel Inference
