@@ -103,6 +103,7 @@ class MochiPipelineTest(DiffusionPipelineTest):
             "genmo/mochi-1-preview",
             torch_dtype=dtype,
         ).to(f"{device}:{self.rank}")
+        pipe.enable_vae_tiling()
         return pipe
 
     def call_pipe(self, pipe, *args, **kwargs):
