@@ -51,20 +51,20 @@ from diffusers import FluxPipeline
 
 dist.init_process_group()
 
-pipeline = FluxPipeline.from_pretrained(
+pipe = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
 ).to(f"cuda:{dist.get_rank()}")
 
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-parallelize_pipe(pipeline)
+parallelize_pipe(pipe)
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipeline.transformer = torch.compile(
-   pipeline.transformer
+pipe.transformer = torch.compile(
+   pipe.transformer, mode="max-autotune"
 )
 
-image = pipeline(
+image = pipe(
     "A cat holding a sign that says hello world", num_inference_steps=28
 ).images[0]
 
@@ -99,11 +99,11 @@ pipe.enable_vae_tiling()
 
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-parallelize_pipe(pipeline)
+parallelize_pipe(pipe)
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipeline.transformer = torch.compile(
-   pipeline.transformer
+pipe.transformer = torch.compile(
+   pipe.transformer, mode="max-autotune"
 )
 
 prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."

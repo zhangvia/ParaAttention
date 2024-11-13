@@ -1,9 +1,9 @@
 import pytest
 
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F
 from para_attn import para_attn_interface
-from torch.distributed.device_mesh import init_device_mesh
 from torch.testing._internal.common_utils import instantiate_parametrized_tests, parametrize, run_tests
 from torch.testing._internal.distributed._tensor.common_dtensor import DTensorTestBase, with_comms
 
@@ -207,7 +207,7 @@ class UnifiedAttnTest(ParallelAttnTest):
             mesh_shape = (world_size // 2, 2)
         else:
             mesh_shape = (world_size, 1)
-        mesh = init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
+        mesh = dist.init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
         return para_attn_interface.UnifiedAttnMode(mesh)
 
     @pytest.mark.skipif("not torch.cuda.is_available()")
