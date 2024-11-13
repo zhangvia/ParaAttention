@@ -74,6 +74,12 @@ if dist.get_rank() == 0:
 dist.destroy_process_group()
 ```
 
+Save the above code to `test.py` and run it with `torchrun`:
+
+```bash
+torchrun --nproc_per_node=2 test.py
+```
+
 ## Run Mochi with Parallel Inference
 
 ``` python
@@ -107,6 +113,12 @@ if dist.get_rank() == 0:
     export_to_video(frames, "mochi.mp4", fps=30)
 
 dist.destroy_process_group()
+```
+
+Save the above code to `test.py` and run it with `torchrun`:
+
+```bash
+torchrun --nproc_per_node=2 test.py
 ```
 
 ## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
