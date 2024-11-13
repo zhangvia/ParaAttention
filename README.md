@@ -53,7 +53,7 @@ dist.init_process_group()
 
 pipeline = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
-).to("cuda")
+).to(f"cuda:{dist.get_rank()}")
 
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
@@ -91,7 +91,7 @@ dist.init_process_group()
 
 pipe = MochiPipeline.from_pretrained(
     "genmo/mochi-1-preview", torch_dtype=torch.bfloat16
-).to("cuda")
+).to(f"cuda:{dist.get_rank()}")
 
 # Enable memory savings
 # pipe.enable_model_cpu_offload()
