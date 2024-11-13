@@ -303,6 +303,8 @@ class UlyssesAttnMode(TorchFunctionMode):
 
 
 class UnifiedAttnMode(TorchFunctionMode):
+    disabled = False
+
     @torch.compiler.disable()
     def __init__(self, mesh=None):
         super().__init__()
