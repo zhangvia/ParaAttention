@@ -47,7 +47,11 @@ class DiffusionPipelineTest(DTensorTestBase):
             parallelize_pipe(pipe, mesh=mesh)
 
         if compile:
-            pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune")
+            if parallelize:
+                torch._inductor.config.reorder_for_compute_comm_overlap = True
+            # If cudagraphs is enabled and parallelize is True, the test will hang indefinitely
+            # after the last iteration.
+            pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
         for _ in range(2):
             begin = time.time()
