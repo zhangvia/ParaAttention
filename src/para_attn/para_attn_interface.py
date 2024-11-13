@@ -218,6 +218,9 @@ def _get_args(args, kwargs, *names):
 
 
 class RingAttnMode(TorchFunctionMode):
+    disabled = False
+
+    @torch.compiler.disable()
     def __init__(self, mesh=None):
         super().__init__()
         self._mesh = mesh
@@ -225,12 +228,41 @@ class RingAttnMode(TorchFunctionMode):
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
+        if self.disabled:
+            return func(*args, **kwargs)
+
         if func is torch.nn.functional.scaled_dot_product_attention:
             return ring_attn_func(*args, **kwargs, mesh=self._mesh)
         return func(*args, **kwargs)
 
+    @torch.compiler.disable()
+    def __enter__(self):
+        super().__enter__()
+
+    @torch.compiler.disable()
+    def __exit__(self, *args):
+        super().__exit__(*args)
+
+    @contextlib.contextmanager
+    def disable(cls):
+        old_disabled = cls._set_disabled(True)
+        try:
+            yield
+        finally:
+            cls._set_disabled(old_disabled)
+
+    @classmethod
+    @torch.compiler.disable()
+    def _set_disabled(cls, value):
+        old_disabled = cls.disabled
+        cls.disabled = value
+        return old_disabled
+
 
 class UlyssesAttnMode(TorchFunctionMode):
+    disabled = False
+
+    @torch.compiler.disable()
     def __init__(self, mesh=None):
         super().__init__()
         self._mesh = mesh
@@ -239,12 +271,39 @@ class UlyssesAttnMode(TorchFunctionMode):
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
+        if self.disabled:
+            return func(*args, **kwargs)
+
         if func is torch.nn.functional.scaled_dot_product_attention:
             return ulysses_attn_func(*args, **kwargs, mesh=self._mesh)
         return func(*args, **kwargs)
 
+    @torch.compiler.disable()
+    def __enter__(self):
+        super().__enter__()
+
+    @torch.compiler.disable()
+    def __exit__(self, *args):
+        super().__exit__(*args)
+
+    @contextlib.contextmanager
+    def disable(cls):
+        old_disabled = cls._set_disabled(True)
+        try:
+            yield
+        finally:
+            cls._set_disabled(old_disabled)
+
+    @classmethod
+    @torch.compiler.disable()
+    def _set_disabled(cls, value):
+        old_disabled = cls.disabled
+        cls.disabled = value
+        return old_disabled
+
 
 class UnifiedAttnMode(TorchFunctionMode):
+    @torch.compiler.disable()
     def __init__(self, mesh):
         super().__init__()
         assert isinstance(mesh, DeviceMesh), "mesh must be a DeviceMesh"
@@ -270,6 +329,30 @@ class UnifiedAttnMode(TorchFunctionMode):
                 raise ValueError(f"Unknown parallel method: {parallel_method}")
 
         return func(*args, **kwargs)
+
+    @torch.compiler.disable()
+    def __enter__(self):
+        super().__enter__()
+
+    @torch.compiler.disable()
+    def __exit__(self, *args):
+        super().__exit__(*args)
+
+    @classmethod
+    @contextlib.contextmanager
+    def disable(cls):
+        old_disabled = cls._set_disabled(True)
+        try:
+            yield
+        finally:
+            cls._set_disabled(old_disabled)
+
+    @classmethod
+    @torch.compiler.disable()
+    def _set_disabled(cls, value):
+        old_disabled = cls.disabled
+        cls.disabled = value
+        return old_disabled
 
     @contextlib.contextmanager
     def _set_parallel_method(self, method):

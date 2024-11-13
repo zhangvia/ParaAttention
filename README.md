@@ -5,8 +5,9 @@ supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Rin
 
 This aims to provide:
 
-- [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
+- [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX` and `Mochi` inference much faster.
 - [x] A unified interface to run context parallel attention, as well as keeping the maximum performance while working with `torch.compile`
+- [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
 
 # Installation
 
@@ -41,13 +42,79 @@ pre-commit run --all-files
 
 # Usage
 
+## Run FLUX.1-dev with Parallel Inference
+
+``` python
+import torch 
+import torch.distributed as dist
+from diffusers import FluxPipeline
+
+dist.init_process_group()
+
+pipeline = FluxPipeline.from_pretrained(
+    "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
+).to("cuda")
+
+from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
+
+parallelize_pipe(pipeline)
+
+torch._inductor.config.reorder_for_compute_comm_overlap = True
+pipeline.transformer = torch.compile(
+   pipeline.transformer
+)
+
+image = pipeline(
+    "A cat holding a sign that says hello world", num_inference_steps=28
+).images[0]
+
+if dist.get_rank() == 0:
+    image.save("flux.png")
+
+dist.destroy_process_group()
+```
+
+## Run Mochi with Parallel Inference
+
+``` python
+import torch
+from diffusers import MochiPipeline
+from diffusers.utils import export_to_video
+
+dist.init_process_group()
+
+pipe = MochiPipeline.from_pretrained(
+    "genmo/mochi-1-preview", torch_dtype=torch.bfloat16
+).to("cuda")
+
+# Enable memory savings
+# pipe.enable_model_cpu_offload()
+pipe.enable_vae_tiling()
+
+from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
+
+parallelize_pipe(pipeline)
+
+torch._inductor.config.reorder_for_compute_comm_overlap = True
+pipeline.transformer = torch.compile(
+   pipeline.transformer
+)
+
+prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
+frames = pipe(prompt, num_frames=84).frames[0]
+
+if dist.get_rank() == 0:
+    export_to_video(frames, "mochi.mp4", fps=30)
+
+dist.destroy_process_group()
+```
+
 ## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
 
 ``` python
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
-from torch.distributed import init_device_mesh
 from para_attn import para_attn_interface
 
 dist.init_process_group()
@@ -63,6 +130,8 @@ else:
 B, H, S_Q, S_KV, D = 2, 24, 4096, 4096, 64
 dtype = torch.float16
 device = "cuda"
+
+torch._inductor.config.reorder_for_compute_comm_overlap = True
 
 with torch.no_grad(), torch.cuda.device(rank):
     torch.manual_seed(0)
@@ -84,7 +153,7 @@ with torch.no_grad(), torch.cuda.device(rank):
     func = torch.compile(func)
 
     for _ in range(2):
-        mesh = init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
+        mesh = dist.init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
         with para_attn_interface.UnifiedAttnMode(mesh):
             out_slice = func(
                 query_slice,

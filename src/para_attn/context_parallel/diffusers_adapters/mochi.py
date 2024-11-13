@@ -1,0 +1,128 @@
+import functools
+from typing import List, Optional, Union
+
+import torch
+from diffusers import DiffusionPipeline, MochiTransformer3DModel
+
+import para_attn.primitives as DP
+from para_attn.para_attn_interface import UnifiedAttnMode
+
+
+def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) -> None:
+    assert isinstance(transformer, MochiTransformer3DModel)
+
+    original_forward = transformer.forward
+
+    @functools.wraps(transformer.__class__.forward)
+    def new_forward(
+        self,
+        hidden_states: torch.Tensor,
+        encoder_hidden_states: torch.Tensor,
+        *args,
+        encoder_attention_mask: torch.Tensor,
+        **kwargs,
+    ):
+        hidden_states = DP.get_assigned_chunk(hidden_states, dim=-2)
+        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=-2)
+        encoder_attention_mask = DP.get_assigned_chunk(encoder_attention_mask, dim=-1)
+
+        with UnifiedAttnMode(mesh):
+            output = original_forward(
+                hidden_states,
+                encoder_hidden_states,
+                *args,
+                encoder_attention_mask=encoder_attention_mask,
+                **kwargs,
+            )
+
+        return_dict = not isinstance(output, tuple)
+        sample = output[0]
+        sample = DP.get_complete_tensor(sample, dim=-2)
+        if return_dict:
+            return output.__class__(sample, *output[1:])
+        return (sample, *output[1:])
+
+    new_forward = new_forward.__get__(transformer)
+    transformer.forward = new_forward
+
+    original_time_embed_forward = transformer.time_embed.forward
+
+    @functools.wraps(transformer.time_embed.__class__.forward)
+    def new_time_embed_forward(
+        self,
+        timestep: torch.LongTensor,
+        encoder_hidden_states: torch.Tensor,
+        encoder_attention_mask: torch.Tensor,
+        *args,
+        **kwargs,
+    ):
+        encoder_hidden_states = DP.get_complete_tensor(encoder_hidden_states, dim=-2)
+        encoder_attention_mask = DP.get_complete_tensor(encoder_attention_mask, dim=-1)
+        with UnifiedAttnMode.disable():
+            conditioning, caption_proj = original_time_embed_forward(
+                timestep, encoder_hidden_states, encoder_attention_mask, *args, **kwargs
+            )
+        caption_proj = DP.get_assigned_chunk(caption_proj, dim=-2)
+        return conditioning, caption_proj
+
+    new_time_embed_forward = new_time_embed_forward.__get__(transformer.time_embed)
+    transformer.time_embed.forward = new_time_embed_forward
+
+    original_rope_forward = transformer.rope.forward
+
+    @functools.wraps(transformer.rope.__class__.forward)
+    def new_rope_forward(
+        self,
+        pos_frequencies: torch.Tensor,
+        num_frames: int,
+        height: int,
+        width: int,
+        *args,
+        **kwargs,
+    ):
+        height *= DP.get_world_size()
+        rope_cos, rope_sin = original_rope_forward(
+            pos_frequencies,
+            num_frames,
+            height,
+            width,
+            *args,
+            **kwargs,
+        )
+        # dim=1
+        n, h, f = rope_cos.shape
+        rope_cos = rope_cos.reshape(num_frames, -1, h, f)
+        rope_sin = rope_sin.reshape(num_frames, -1, h, f)
+        rope_cos = DP.get_assigned_chunk(rope_cos, dim=-3)
+        rope_sin = DP.get_assigned_chunk(rope_sin, dim=-3)
+        rope_cos = rope_cos.reshape(-1, h, f)
+        rope_sin = rope_sin.reshape(-1, h, f)
+        return rope_cos, rope_sin
+
+    new_rope_forward = new_rope_forward.__get__(transformer.rope)
+    transformer.rope.forward = new_rope_forward
+
+
+def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, mesh=None) -> None:
+    assert isinstance(pipe, DiffusionPipeline)
+
+    original_call = pipe.__class__.__call__
+
+    if not getattr(original_call, "is_parallelized", False):
+
+        @functools.wraps(original_call)
+        def new_call(self, *args, generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None, **kwargs):
+            if generator is None:
+                seed = torch.seed()
+                seed_t = torch.full([1], seed, dtype=torch.int64)
+                seed_t = DP.get_complete_tensor(seed_t, dim=0)
+                seed_t = DP.get_assigned_chunk(seed_t, dim=0, idx=0)
+                generator = torch.Generator(self.device).manual_seed(seed_t.item())
+            return original_call(self, *args, generator=generator, **kwargs)
+
+        new_call.is_parallelized = True
+
+        pipe.__class__.__call__ = new_call
+
+    if not shallow_patch:
+        parallelize_transformer(pipe.transformer, mesh=mesh)
