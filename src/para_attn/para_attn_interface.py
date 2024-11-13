@@ -304,13 +304,19 @@ class UlyssesAttnMode(TorchFunctionMode):
 
 class UnifiedAttnMode(TorchFunctionMode):
     @torch.compiler.disable()
-    def __init__(self, mesh):
+    def __init__(self, mesh=None):
         super().__init__()
-        assert isinstance(mesh, DeviceMesh), "mesh must be a DeviceMesh"
-        assert mesh.mesh.ndim == 2, "mesh must be 2D, got {}".format(mesh.mesh.ndim)
+
         self._parallel_method = "ulysses"
-        self._ulysses_mesh = mesh["ulysses"]
-        self._ring_mesh = mesh["ring"]
+
+        if mesh is None:
+            self._ulysses_mesh = None
+            self._ring_mesh = None
+        else:
+            assert isinstance(mesh, DeviceMesh), "mesh must be a DeviceMesh"
+            assert mesh.mesh.ndim == 2, "mesh must be 2D, got {}".format(mesh.mesh.ndim)
+            self._ulysses_mesh = mesh["ulysses"]
+            self._ring_mesh = mesh["ring"]
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
@@ -318,7 +324,7 @@ class UnifiedAttnMode(TorchFunctionMode):
         if func is torch.nn.functional.scaled_dot_product_attention:
             parallel_method = self._parallel_method
             if parallel_method == "ulysses":
-                with self._set_parallel_method("ring"), self:
+                with self._set_parallel_method("none" if self._ring_mesh is None else "ring"), self:
                     return ulysses_attn_func(*args, **kwargs, mesh=self._ulysses_mesh)
             elif parallel_method == "ring":
                 with self._set_parallel_method("none"), self:
