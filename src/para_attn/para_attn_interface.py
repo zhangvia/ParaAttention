@@ -1,14 +1,12 @@
 import contextlib
-from typing import List, Union
 
 import torch
-import torch.distributed as dist
-import torch.distributed._functional_collectives as ft_c
-import torch.distributed.distributed_c10d as c10d
 import torch.nn.functional as F
 from torch.distributed import DeviceMesh
 from torch.distributed.tensor.experimental._attention import _templated_ring_attention
 from torch.overrides import TorchFunctionMode
+
+import para_attn.primitives as DP
 
 para_attn_ops = torch.ops.para_attn
 
@@ -21,32 +19,16 @@ __all__ = [
 ]
 
 
-def _maybe_wait(tensor: torch.Tensor) -> torch.Tensor:
-    """
-    When tracing the code, the result tensor is not an AsyncCollectiveTensor,
-    so we cannot call ``wait()``.
-    """
-    if isinstance(tensor, ft_c.AsyncCollectiveTensor):
-        return tensor.wait()
-    return tensor
-
-
 def _sdpa_all_to_all_single(x, mesh):
     if x.requires_grad:
-        x = ft_c.all_to_all_single_autograd(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
+        x = DP.all_to_all_single_autograd_sync(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
     else:
-        x = ft_c.all_to_all_single(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
-    x = _maybe_wait(x)
+        x = DP.all_to_all_single_sync(x, output_split_sizes=None, input_split_sizes=None, group=mesh)
     return x
 
 
 def _sdpa_input_all_to_all(x, mesh):
-    if isinstance(mesh, dist.ProcessGroup):
-        pg: Union[dist.ProcessGroup, List[dist.ProcessGroup]] = mesh
-    else:
-        pg = mesh.get_group()
-    assert isinstance(pg, dist.ProcessGroup), "process group must be single dimension"
-    world_size = dist.get_world_size(pg)
+    world_size = DP.get_world_size(mesh)
     if world_size <= 1:
         return x
 
@@ -55,21 +37,13 @@ def _sdpa_input_all_to_all(x, mesh):
     assert h % world_size == 0, "h must be divisible by world_size, got {} and {}".format(h, world_size)
 
     x = x.permute(1, 0, 2, 3).contiguous()
-    x_shape = x.shape
-    x = x.flatten()
     x = _sdpa_all_to_all_single(x, mesh)
-    x = x.reshape(x_shape)
     x = x.reshape(world_size, h // world_size, b, -1, d).permute(2, 1, 0, 3, 4).reshape(b, h // world_size, -1, d)
     return x
 
 
 def _sdpa_output_all_to_all(x, mesh):
-    if isinstance(mesh, dist.ProcessGroup):
-        pg: Union[dist.ProcessGroup, List[dist.ProcessGroup]] = mesh
-    else:
-        pg = mesh.get_group()
-    assert isinstance(pg, dist.ProcessGroup), "process group must be single dimension"
-    world_size = dist.get_world_size(pg)
+    world_size = DP.get_world_size(mesh)
     if world_size <= 1:
         return x
 
@@ -78,10 +52,7 @@ def _sdpa_output_all_to_all(x, mesh):
     assert s % world_size == 0, "s must be divisible by world_size, got {} and {}".format(s, world_size)
 
     x = x.permute(2, 0, 1, 3).contiguous()
-    x_shape = x.shape
-    x = x.flatten()
     x = _sdpa_all_to_all_single(x, mesh)
-    x = x.reshape(x_shape)
     x = x.reshape(world_size, s // world_size, b, -1, d).permute(2, 0, 3, 1, 4).reshape(b, -1, s // world_size, d)
     return x
 
@@ -97,18 +68,22 @@ def ulysses_attn_func(
     scale=None,
     mesh=None,
 ):
-    assert attn_mask is None, "attn_mask is not supported in ulysses_attn_func"
-
     assert query.ndim == 4, "query must have 4 dimensions, got {}".format(query.ndim)
     assert key.ndim == 4, "key must have 4 dimensions, got {}".format(key.ndim)
     assert value.ndim == 4, "value must have 4 dimensions, got {}".format(value.ndim)
 
     if mesh is None:
-        mesh = c10d._get_default_group()
+        mesh = DP.get_group()
 
     query = _sdpa_input_all_to_all(query, mesh)
     key = _sdpa_input_all_to_all(key, mesh)
     value = _sdpa_input_all_to_all(value, mesh)
+    if attn_mask is not None:
+        s_q, s_kv = query.size(-2), key.size(-2)
+        if attn_mask.size(-1) != s_kv:
+            attn_mask = DP.get_complete_tensor(attn_mask, dim=-1, group=mesh)
+        elif attn_mask.size(-2) != s_q:
+            attn_mask = DP.get_complete_tensor(attn_mask, dim=-2, group=mesh)
 
     out = F.scaled_dot_product_attention(
         query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale
@@ -162,14 +137,8 @@ def ring_attn_func(
 ):
     assert attn_mask is None, "attn_mask is not supported in ring_attn_func"
 
-    if mesh is None:
-        mesh = c10d._get_default_group()
-    if isinstance(mesh, dist.ProcessGroup):
-        pg: Union[dist.ProcessGroup, List[dist.ProcessGroup]] = mesh
-    else:
-        pg = mesh.get_group()
-    assert isinstance(pg, dist.ProcessGroup), "process group must be single dimension"
-    world_size = dist.get_world_size(pg)
+    pg = DP.get_group(mesh)
+    world_size = DP.get_world_size(pg)
     if world_size <= 1:
         return F.scaled_dot_product_attention(
             query,
@@ -233,6 +202,7 @@ class RingAttnMode(TorchFunctionMode):
 
         if func is torch.nn.functional.scaled_dot_product_attention:
             return ring_attn_func(*args, **kwargs, mesh=self._mesh)
+
         return func(*args, **kwargs)
 
     @torch.compiler.disable()
@@ -276,6 +246,7 @@ class UlyssesAttnMode(TorchFunctionMode):
 
         if func is torch.nn.functional.scaled_dot_product_attention:
             return ulysses_attn_func(*args, **kwargs, mesh=self._mesh)
+
         return func(*args, **kwargs)
 
     @torch.compiler.disable()
@@ -322,6 +293,9 @@ class UnifiedAttnMode(TorchFunctionMode):
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
+
+        if self.disabled:
+            return func(*args, **kwargs)
 
         if func is torch.nn.functional.scaled_dot_product_attention:
             parallel_method = self._parallel_method
