@@ -5,9 +5,28 @@ supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Rin
 
 This aims to provide:
 
-- [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX` and `Mochi` inference much faster.
+- [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX` and `Mochi` inference much faster losslessly.
 - [x] A unified interface to run context parallel attention, as well as keeping the maximum performance while working with `torch.compile`
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
+
+# Performance
+
+| Model | GPU | Method | Wall Time (s) | Speedup |
+| --- | --- | --- | --- | --- |
+| FLUX.1-dev | A100-SXM4-80GB | Baseline | 13.843 | 1.00x |
+| FLUX.1-dev | A100-SXM4-80GB | `torch.compile` | 9.997 | 1.38x |
+| FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ulysses)` | 8.379 | 1.65x |
+| FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ring)` | 8.307 | 1.66x |
+| FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ulysses)` + `torch.compile` | 5.915 | 2.34x |
+| FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ring)` + `torch.compile` | 5.775 | 2.39x |
+| FLUX.1-dev | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` + `torch.compile` | ? | ? |
+| mochi-1-preview | A100-SXM4-80GB | Baseline | 196.534 | 1.00x |
+| mochi-1-preview | A100-SXM4-80GB | `torch.compile` | 149.868 | 1.31x |
+| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ulysses)` | 110.146 | 1.78x |
+| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ring)` | 109.435 | 1.80x |
+| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ulysses)` + `torch.compile` | 83.912 | 2.34x |
+| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ring)` + `torch.compile` | 82.176 | 2.39x |
+| mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` + `torch.compile` | ? | ? |
 
 # Installation
 
@@ -51,20 +70,20 @@ from diffusers import FluxPipeline
 
 dist.init_process_group()
 
-pipeline = FluxPipeline.from_pretrained(
+pipe = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
 ).to(f"cuda:{dist.get_rank()}")
 
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-parallelize_pipe(pipeline)
+parallelize_pipe(pipe)
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipeline.transformer = torch.compile(
-   pipeline.transformer
+pipe.transformer = torch.compile(
+   pipe.transformer, mode="max-autotune-no-cudagraphs"
 )
 
-image = pipeline(
+image = pipe(
     "A cat holding a sign that says hello world", num_inference_steps=28
 ).images[0]
 
@@ -99,11 +118,11 @@ pipe.enable_vae_tiling()
 
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-parallelize_pipe(pipeline)
+parallelize_pipe(pipe)
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipeline.transformer = torch.compile(
-   pipeline.transformer
+pipe.transformer = torch.compile(
+   pipe.transformer, mode="max-autotune-no-cudagraphs"
 )
 
 prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
@@ -194,4 +213,10 @@ Save the above code to `test.py` and run it with `torchrun`:
 
 ```bash
 torchrun --nproc_per_node=2 test.py
+```
+
+# Run Tests
+
+```bash
+DISTRIBUTED_TESTS_DEFAULT_TIMEOUT=3000 pytest tests
 ```
