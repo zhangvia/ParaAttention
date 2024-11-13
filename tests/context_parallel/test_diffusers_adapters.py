@@ -20,9 +20,9 @@ class DiffusionPipelineTest(DTensorTestBase):
         else:
             return 8
 
-    def mesh(self, device):
+    def mesh(self, device, use_ring):
         world_size = self.world_size
-        if world_size % 2 == 0:
+        if use_ring and world_size % 2 == 0:
             mesh_shape = (world_size // 2, 2)
         else:
             mesh_shape = (world_size, 1)
@@ -35,7 +35,7 @@ class DiffusionPipelineTest(DTensorTestBase):
     def call_pipe(self, pipe, *args, **kwargs):
         raise NotImplementedError
 
-    def _test_benchmark_pipe(self, dtype, device, parallelize, compile):
+    def _test_benchmark_pipe(self, dtype, device, parallelize, compile, use_ring):
         torch.manual_seed(0)
 
         pipe = self.new_pipe(dtype, device)
@@ -43,7 +43,8 @@ class DiffusionPipelineTest(DTensorTestBase):
         if parallelize:
             from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-            parallelize_pipe(pipe)
+            mesh = self.mesh(device, use_ring=use_ring)
+            parallelize_pipe(pipe, mesh=mesh)
 
         if compile:
             pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune")
@@ -76,16 +77,18 @@ class FluxPipelineTest(DiffusionPipelineTest):
     @parametrize("dtype", [torch.bfloat16])
     @parametrize("device", ["cuda"])
     @parametrize(
-        "parallelize,compile",
+        "parallelize,compile,use_ring",
         [
-            [False, False],
-            [False, True],
-            [True, False],
-            [True, True],
+            [False, False, False],
+            [False, True, False],
+            [True, False, False],
+            [True, False, True],
+            [True, True, False],
+            [True, True, True],
         ],
     )
-    def test_benchmark_pipe(self, dtype, device, parallelize, compile):
-        super()._test_benchmark_pipe(dtype, device, parallelize, compile)
+    def test_benchmark_pipe(self, dtype, device, parallelize, compile, use_ring):
+        super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_ring)
 
 
 class MochiPipelineTest(DiffusionPipelineTest):
@@ -109,16 +112,18 @@ class MochiPipelineTest(DiffusionPipelineTest):
     @parametrize("dtype", [torch.bfloat16])
     @parametrize("device", ["cuda"])
     @parametrize(
-        "parallelize,compile",
+        "parallelize,compile,use_ring",
         [
-            [False, False],
-            [False, True],
-            [True, False],
-            [True, True],
+            [False, False, False],
+            [False, True, False],
+            [True, False, False],
+            [True, False, True],
+            [True, True, False],
+            [True, True, True],
         ],
     )
-    def test_benchmark_pipe(self, dtype, device, parallelize, compile):
-        super()._test_benchmark_pipe(dtype, device, parallelize, compile)
+    def test_benchmark_pipe(self, dtype, device, parallelize, compile, use_ring):
+        super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_ring)
 
 
 instantiate_parametrized_tests(DiffusionPipelineTest)
