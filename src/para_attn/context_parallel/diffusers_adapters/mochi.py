@@ -119,7 +119,7 @@ def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, me
                 seed_t = DP.get_complete_tensor(seed_t, dim=0)
                 seed_t = DP.get_assigned_chunk(seed_t, dim=0, idx=0)
                 seed = seed_t.item()
-                seed -= torch.finfo(torch.int64).min
+                seed -= torch.iinfo(torch.int64).min
                 generator = torch.Generator(self.device).manual_seed(seed)
             return original_call(self, *args, generator=generator, **kwargs)
 
