@@ -70,7 +70,7 @@ def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, me
         def new_call(self, *args, generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None, **kwargs):
             if generator is None:
                 seed = torch.seed()
-                seed += torch.finfo(torch.int64).min
+                seed += torch.iinfo(torch.int64).min
                 seed_t = torch.full([1], seed, dtype=torch.int64)
                 seed_t = DP.get_complete_tensor(seed_t, dim=0)
                 seed_t = DP.get_assigned_chunk(seed_t, dim=0, idx=0)
