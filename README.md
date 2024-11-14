@@ -17,11 +17,13 @@ This aims to provide:
 | FLUX.1-dev | A100-SXM4-80GB | `torch.compile` | 9.997 | 1.38x |
 | FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ring)` | 8.307 | 1.66x |
 | FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ring)` + `torch.compile` | 5.775 | 2.39x |
+| FLUX.1-dev | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` | ? | ? |
 | FLUX.1-dev | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` + `torch.compile` | ? | ? |
 | mochi-1-preview | A100-SXM4-80GB | Baseline | 196.534 | 1.00x |
 | mochi-1-preview | A100-SXM4-80GB | `torch.compile` | 149.868 | 1.31x |
 | mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (cfg)` | ? | ? |
 | mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (cfg)` + `torch.compile` | ? | ? |
+| mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (cfg + ring)` | ? | ? |
 | mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (cfg + ring)` + `torch.compile` | ? | ? |
 
 # Installation

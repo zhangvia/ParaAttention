@@ -30,7 +30,7 @@ class DiffusionPipelineTest(DTensorTestBase):
         if use_ring:
             max_ring_dim_size = 2
         mesh = init_context_parallel_mesh(
-            device.type, max_batch_dim_size=max_batch_dim_size, max_ring_dim_size=max_ring_dim_size
+            device, max_batch_dim_size=max_batch_dim_size, max_ring_dim_size=max_ring_dim_size
         )
         return mesh
 
