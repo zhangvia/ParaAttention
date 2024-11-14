@@ -6,7 +6,7 @@ supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Rin
 This aims to provide:
 
 - [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX` and `Mochi` inference much faster losslessly.
-- [x] A unified interface to run context parallel attention, as well as keeping the maximum performance while working with `torch.compile`
+- [x] A unified interface to run context parallel attention (***cfg-ulysses-ring***), as well as keeping the maximum performance while working with `torch.compile`
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
 
 # Performance
@@ -15,18 +15,14 @@ This aims to provide:
 | --- | --- | --- | --- | --- |
 | FLUX.1-dev | A100-SXM4-80GB | Baseline | 13.843 | 1.00x |
 | FLUX.1-dev | A100-SXM4-80GB | `torch.compile` | 9.997 | 1.38x |
-| FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ulysses)` | 8.379 | 1.65x |
 | FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ring)` | 8.307 | 1.66x |
-| FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ulysses)` + `torch.compile` | 5.915 | 2.34x |
 | FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ring)` + `torch.compile` | 5.775 | 2.39x |
 | FLUX.1-dev | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` + `torch.compile` | ? | ? |
 | mochi-1-preview | A100-SXM4-80GB | Baseline | 196.534 | 1.00x |
 | mochi-1-preview | A100-SXM4-80GB | `torch.compile` | 149.868 | 1.31x |
-| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ulysses)` | 110.146 | 1.78x |
-| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ring)` | 109.435 | 1.80x |
-| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ulysses)` + `torch.compile` | 83.912 | 2.34x |
-| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ring)` + `torch.compile` | 82.176 | 2.39x |
-| mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` + `torch.compile` | ? | ? |
+| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (cfg)` | ? | ? |
+| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (cfg)` + `torch.compile` | ? | ? |
+| mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (cfg + ring)` + `torch.compile` | ? | ? |
 
 # Installation
 
