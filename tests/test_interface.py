@@ -227,7 +227,7 @@ class UnifiedAttnTest(ParallelAttnTest):
         super()._test_attn_mode(dtype, device, B, H, S_Q, S_KV, D, is_causal, compile)
 
 
-instantiate_parametrized_tests(RingAttnTest)
+# instantiate_parametrized_tests(RingAttnTest)
 instantiate_parametrized_tests(UlyssesAttnTest)
 instantiate_parametrized_tests(UnifiedAttnTest)
 

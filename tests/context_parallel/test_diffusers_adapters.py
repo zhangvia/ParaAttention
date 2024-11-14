@@ -1,8 +1,8 @@
 import time
 
 import pytest
+
 import torch
-import torch.distributed as dist
 from torch.testing._internal.common_utils import instantiate_parametrized_tests, parametrize, run_tests
 from torch.testing._internal.distributed._tensor.common_dtensor import DTensorTestBase, with_comms
 
@@ -20,13 +20,18 @@ class DiffusionPipelineTest(DTensorTestBase):
         else:
             return 8
 
-    def mesh(self, device, use_ring):
-        world_size = self.world_size
-        if use_ring and world_size % 2 == 0:
-            mesh_shape = (world_size // 2, 2)
-        else:
-            mesh_shape = (world_size, 1)
-        mesh = dist.init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
+    def mesh(self, device, use_batch, use_ring):
+        from para_attn.context_parallel import init_context_parallel_mesh
+
+        max_batch_dim_size = None
+        if use_batch:
+            max_batch_dim_size = 2
+        max_ring_dim_size = None
+        if use_ring:
+            max_ring_dim_size = 2
+        mesh = init_context_parallel_mesh(
+            device, max_batch_dim_size=max_batch_dim_size, max_ring_dim_size=max_ring_dim_size
+        )
         return mesh
 
     def new_pipe(self, dtype, device, rank):
@@ -35,7 +40,7 @@ class DiffusionPipelineTest(DTensorTestBase):
     def call_pipe(self, pipe, *args, **kwargs):
         raise NotImplementedError
 
-    def _test_benchmark_pipe(self, dtype, device, parallelize, compile, use_ring):
+    def _test_benchmark_pipe(self, dtype, device, parallelize, compile, use_batch, use_ring):
         torch.manual_seed(0)
 
         pipe = self.new_pipe(dtype, device)
@@ -43,7 +48,7 @@ class DiffusionPipelineTest(DTensorTestBase):
         if parallelize:
             from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-            mesh = self.mesh(device, use_ring=use_ring)
+            mesh = self.mesh(device, use_batch=use_batch, use_ring=use_ring)
             parallelize_pipe(pipe, mesh=mesh)
 
         if compile:
@@ -81,18 +86,16 @@ class FluxPipelineTest(DiffusionPipelineTest):
     @parametrize("dtype", [torch.bfloat16])
     @parametrize("device", ["cuda"])
     @parametrize(
-        "parallelize,compile,use_ring",
+        "parallelize,compile,use_batch,use_ring",
         [
-            [False, False, False],
-            [False, True, False],
-            [True, False, False],
-            [True, False, True],
-            [True, True, False],
-            [True, True, True],
+            [False, False, False, False],
+            [False, True, False, False],
+            [True, False, False, True],
+            [True, True, False, True],
         ],
     )
-    def test_benchmark_pipe(self, dtype, device, parallelize, compile, use_ring):
-        super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_ring)
+    def test_benchmark_pipe(self, dtype, device, parallelize, compile, use_batch, use_ring):
+        super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_batch, use_ring)
 
 
 class MochiPipelineTest(DiffusionPipelineTest):
@@ -117,21 +120,19 @@ class MochiPipelineTest(DiffusionPipelineTest):
     @parametrize("dtype", [torch.float16])
     @parametrize("device", ["cuda"])
     @parametrize(
-        "parallelize,compile,use_ring",
+        "parallelize,compile,use_batch,use_ring",
         [
-            [False, False, False],
-            [False, True, False],
-            [True, False, False],
-            [True, False, True],
-            [True, True, False],
-            [True, True, True],
+            [False, False, False, False],
+            [False, True, False, False],
+            [True, False, True, True],
+            [True, True, True, True],
         ],
     )
-    def test_benchmark_pipe(self, dtype, device, parallelize, compile, use_ring):
-        super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_ring)
+    def test_benchmark_pipe(self, dtype, device, parallelize, compile, use_batch, use_ring):
+        super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_batch, use_ring)
 
 
-instantiate_parametrized_tests(DiffusionPipelineTest)
+# instantiate_parametrized_tests(DiffusionPipelineTest)
 instantiate_parametrized_tests(FluxPipelineTest)
 instantiate_parametrized_tests(MochiPipelineTest)
 

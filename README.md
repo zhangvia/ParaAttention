@@ -6,7 +6,7 @@ supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Rin
 This aims to provide:
 
 - [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX` and `Mochi` inference much faster losslessly.
-- [x] A unified interface to run context parallel attention, as well as keeping the maximum performance while working with `torch.compile`
+- [x] A unified interface to run context parallel attention (***cfg-ulysses-ring***), as well as keeping the maximum performance while working with `torch.compile`
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
 
 # Performance
@@ -15,18 +15,22 @@ This aims to provide:
 | --- | --- | --- | --- | --- |
 | FLUX.1-dev | A100-SXM4-80GB | Baseline | 13.843 | 1.00x |
 | FLUX.1-dev | A100-SXM4-80GB | `torch.compile` | 9.997 | 1.38x |
-| FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ulysses)` | 8.379 | 1.65x |
 | FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ring)` | 8.307 | 1.66x |
-| FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ulysses)` + `torch.compile` | 5.915 | 2.34x |
 | FLUX.1-dev | A100-SXM4-80GB x 2 | `para-attn (ring)` + `torch.compile` | 5.775 | 2.39x |
-| FLUX.1-dev | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` + `torch.compile` | ? | ? |
+| FLUX.1-dev | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` | 6.157 | 2.25x |
+| FLUX.1-dev | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` + `torch.compile` | 3.557 | 3.89x |
 | mochi-1-preview | A100-SXM4-80GB | Baseline | 196.534 | 1.00x |
 | mochi-1-preview | A100-SXM4-80GB | `torch.compile` | 149.868 | 1.31x |
+| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (cfg)` | 105.438 | 1.86x |
 | mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ulysses)` | 110.146 | 1.78x |
 | mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ring)` | 109.435 | 1.80x |
+| mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (cfg)` + `torch.compile` | 81.913 | 2.40x |
 | mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ulysses)` + `torch.compile` | 83.912 | 2.34x |
 | mochi-1-preview | A100-SXM4-80GB x 2 | `para-attn (ring)` + `torch.compile` | 82.176 | 2.39x |
-| mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (ulysses + ring)` + `torch.compile` | ? | ? |
+| mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (cfg + ring)` | 61.206 | 3.21x |
+| mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (cfg + ring)` + `torch.compile` | 47.100 | 4.17x |
+
+NOTE: The speedup of iterations per second is generally higher than the speedup of wall time, because the wall time includes the overhead of calling the text encoder and vae decoder.
 
 # Installation
 
@@ -74,9 +78,16 @@ pipe = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
 ).to(f"cuda:{dist.get_rank()}")
 
+from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-parallelize_pipe(pipe)
+parallelize_pipe(
+    pipe,
+    mesh=init_context_parallel_mesh(
+        pipe.device.type,
+        max_ring_dim_size=2,
+    ),
+)
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
 pipe.transformer = torch.compile(
@@ -103,6 +114,7 @@ torchrun --nproc_per_node=2 test.py
 
 ``` python
 import torch
+import torch.distributed as dist
 from diffusers import MochiPipeline
 from diffusers.utils import export_to_video
 
@@ -116,9 +128,17 @@ pipe = MochiPipeline.from_pretrained(
 # pipe.enable_model_cpu_offload()
 pipe.enable_vae_tiling()
 
+from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-parallelize_pipe(pipe)
+parallelize_pipe(
+    pipe,
+    mesh=init_context_parallel_mesh(
+        pipe.device.type,
+        max_batch_dim_size=2,
+        max_ring_dim_size=2,
+    ),
+)
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
 pipe.transformer = torch.compile(
