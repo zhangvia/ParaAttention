@@ -46,7 +46,7 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
         return_dict = not isinstance(output, tuple)
         sample = output[0]
         sample = DP.get_complete_tensor(sample, dim=-2, group=seq_mesh)
-        sample = DP.get_assigned_chunk(sample, dim=0, group=batch_mesh)
+        sample = DP.get_complete_tensor(sample, dim=0, group=batch_mesh)
         if return_dict:
             return output.__class__(sample, *output[1:])
         return (sample, *output[1:])
