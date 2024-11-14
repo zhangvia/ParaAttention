@@ -5,11 +5,16 @@ import torch
 from diffusers import DiffusionPipeline, MochiTransformer3DModel
 
 import para_attn.primitives as DP
+from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.para_attn_interface import UnifiedAttnMode
 
 
 def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) -> None:
     assert isinstance(transformer, MochiTransformer3DModel)
+
+    mesh = init_context_parallel_mesh(transformer.device, mesh=mesh)
+    batch_mesh = mesh["batch"]
+    seq_mesh = mesh["ulysses", "ring"]._flatten()
 
     original_forward = transformer.forward
 
@@ -22,9 +27,12 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
         encoder_attention_mask: torch.Tensor,
         **kwargs,
     ):
-        hidden_states = DP.get_assigned_chunk(hidden_states, dim=-2)
-        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=-2)
-        encoder_attention_mask = DP.get_assigned_chunk(encoder_attention_mask, dim=-1)
+        hidden_states = DP.get_assigned_chunk(hidden_states, dim=0, group=batch_mesh)
+        hidden_states = DP.get_assigned_chunk(hidden_states, dim=-2, group=seq_mesh)
+        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
+        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=-2, group=seq_mesh)
+        encoder_attention_mask = DP.get_assigned_chunk(encoder_attention_mask, dim=0, group=batch_mesh)
+        encoder_attention_mask = DP.get_assigned_chunk(encoder_attention_mask, dim=-1, group=seq_mesh)
 
         with UnifiedAttnMode(mesh):
             output = original_forward(
@@ -37,7 +45,8 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
 
         return_dict = not isinstance(output, tuple)
         sample = output[0]
-        sample = DP.get_complete_tensor(sample, dim=-2)
+        sample = DP.get_complete_tensor(sample, dim=-2, group=seq_mesh)
+        sample = DP.get_assigned_chunk(sample, dim=0, group=batch_mesh)
         if return_dict:
             return output.__class__(sample, *output[1:])
         return (sample, *output[1:])
@@ -56,13 +65,16 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
         *args,
         **kwargs,
     ):
-        encoder_hidden_states = DP.get_complete_tensor(encoder_hidden_states, dim=-2)
-        encoder_attention_mask = DP.get_complete_tensor(encoder_attention_mask, dim=-1)
+        encoder_hidden_states = DP.get_complete_tensor(encoder_hidden_states, dim=-2, group=seq_mesh)
+        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
+        encoder_attention_mask = DP.get_complete_tensor(encoder_attention_mask, dim=-1, group=seq_mesh)
+        encoder_attention_mask = DP.get_assigned_chunk(encoder_attention_mask, dim=0, group=batch_mesh)
         with UnifiedAttnMode.disable():
             conditioning, caption_proj = original_time_embed_forward(
                 timestep, encoder_hidden_states, encoder_attention_mask, *args, **kwargs
             )
-        caption_proj = DP.get_assigned_chunk(caption_proj, dim=-2)
+        caption_proj = DP.get_assigned_chunk(caption_proj, dim=0, group=batch_mesh)
+        caption_proj = DP.get_assigned_chunk(caption_proj, dim=-2, group=seq_mesh)
         return conditioning, caption_proj
 
     new_time_embed_forward = new_time_embed_forward.__get__(transformer.time_embed)
@@ -80,7 +92,7 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
         *args,
         **kwargs,
     ):
-        height *= DP.get_world_size()
+        height *= DP.get_world_size(seq_mesh)
         rope_cos, rope_sin = original_rope_forward(
             pos_frequencies,
             num_frames,
@@ -93,8 +105,8 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
         n, h, f = rope_cos.shape
         rope_cos = rope_cos.reshape(num_frames, -1, h, f)
         rope_sin = rope_sin.reshape(num_frames, -1, h, f)
-        rope_cos = DP.get_assigned_chunk(rope_cos, dim=-3)
-        rope_sin = DP.get_assigned_chunk(rope_sin, dim=-3)
+        rope_cos = DP.get_assigned_chunk(rope_cos, dim=-3, group=seq_mesh)
+        rope_sin = DP.get_assigned_chunk(rope_sin, dim=-3, group=seq_mesh)
         rope_cos = rope_cos.reshape(-1, h, f)
         rope_sin = rope_sin.reshape(-1, h, f)
         return rope_cos, rope_sin

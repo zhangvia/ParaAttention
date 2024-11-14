@@ -1,12 +1,16 @@
 import contextlib
 
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F
-from torch.distributed import DeviceMesh
-from torch.distributed.tensor.experimental._attention import _templated_ring_attention
 from torch.overrides import TorchFunctionMode
 
 import para_attn.primitives as DP
+
+try:
+    from torch.distributed.tensor.experimental._attention import _templated_ring_attention
+except ImportError:
+    _templated_ring_attention = None
 
 para_attn_ops = torch.ops.para_attn
 
@@ -106,6 +110,8 @@ class RingAttnFunc(torch.autograd.Function):
         scale,
         mesh,
     ):
+        assert _templated_ring_attention is not None, "RingAttnFunc requires a newer version of PyTorch"
+
         out, lse = _templated_ring_attention(
             mesh,
             para_attn_ops.attention_forward_with_lse,
@@ -283,13 +289,27 @@ class UnifiedAttnMode(TorchFunctionMode):
         self._parallel_method = "ulysses"
 
         if mesh is None:
-            self._ulysses_mesh = None
+            self._ulysses_mesh = DP.get_default_group()
             self._ring_mesh = None
         else:
-            assert isinstance(mesh, DeviceMesh), "mesh must be a DeviceMesh"
-            assert mesh.mesh.ndim == 2, "mesh must be 2D, got {}".format(mesh.mesh.ndim)
-            self._ulysses_mesh = mesh["ulysses"]
-            self._ring_mesh = mesh["ring"]
+            if isinstance(mesh, dist.ProcessGroup):
+                self._ulysses_mesh = mesh
+                self._ring_mesh = None
+            else:
+                assert isinstance(mesh, dist.DeviceMesh), "mesh must be a ProcessGroup or DeviceMesh"
+
+                if "ulysses" in mesh.mesh_dim_names:
+                    self._ulysses_mesh = mesh["ulysses"]
+                else:
+                    self._ulysses_mesh = None
+                if "ring" in mesh.mesh_dim_names:
+                    self._ring_mesh = mesh["ring"]
+                else:
+                    self._ring_mesh = None
+
+                assert (
+                    self._ulysses_mesh is not None or self._ring_mesh is not None
+                ), "mesh must have ulysses or ring dim"
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
@@ -300,10 +320,14 @@ class UnifiedAttnMode(TorchFunctionMode):
         if func is torch.nn.functional.scaled_dot_product_attention:
             parallel_method = self._parallel_method
             if parallel_method == "ulysses":
-                with self._set_parallel_method("none" if self._ring_mesh is None else "ring"), self:
+                with self._set_parallel_method("ring"), self:
+                    if self._ulysses_mesh is None:
+                        return func(*args, **kwargs)
                     return ulysses_attn_func(*args, **kwargs, mesh=self._ulysses_mesh)
             elif parallel_method == "ring":
                 with self._set_parallel_method("none"), self:
+                    if self._ring_mesh is None:
+                        return func(*args, **kwargs)
                     return ring_attn_func(*args, **kwargs, mesh=self._ring_mesh)
             elif parallel_method == "none":
                 return func(*args, **kwargs)
