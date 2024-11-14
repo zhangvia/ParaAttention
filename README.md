@@ -77,11 +77,10 @@ pipe = FluxPipeline.from_pretrained(
 from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-parallelize_pipe(pipe)
 parallelize_pipe(
     pipe,
     mesh=init_context_parallel_mesh(
-        pipe.device,
+        pipe.device.type,
         max_ring_dim_size=2,
     ),
 )
@@ -111,6 +110,7 @@ torchrun --nproc_per_node=2 test.py
 
 ``` python
 import torch
+import torch.distributed as dist
 from diffusers import MochiPipeline
 from diffusers.utils import export_to_video
 
@@ -130,7 +130,7 @@ from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 parallelize_pipe(
     pipe,
     mesh=init_context_parallel_mesh(
-        pipe.device,
+        pipe.device.type,
         max_batch_dim_size=2,
         max_ring_dim_size=2,
     ),

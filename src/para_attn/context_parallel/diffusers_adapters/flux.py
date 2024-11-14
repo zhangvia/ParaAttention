@@ -12,7 +12,7 @@ from para_attn.para_attn_interface import UnifiedAttnMode
 def parallelize_transformer(transformer: FluxTransformer2DModel, *, mesh=None) -> None:
     assert isinstance(transformer, FluxTransformer2DModel)
 
-    mesh = init_context_parallel_mesh(transformer.device, mesh=mesh)
+    mesh = init_context_parallel_mesh(transformer.device.type, mesh=mesh)
     batch_mesh = mesh["batch"]
     seq_mesh = mesh["ulysses", "ring"]._flatten()
 

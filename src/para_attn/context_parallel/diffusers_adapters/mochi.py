@@ -12,7 +12,7 @@ from para_attn.para_attn_interface import UnifiedAttnMode
 def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) -> None:
     assert isinstance(transformer, MochiTransformer3DModel)
 
-    mesh = init_context_parallel_mesh(transformer.device, mesh=mesh)
+    mesh = init_context_parallel_mesh(transformer.device.type, mesh=mesh)
     batch_mesh = mesh["batch"]
     seq_mesh = mesh["ulysses", "ring"]._flatten()
 
@@ -66,9 +66,9 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
         **kwargs,
     ):
         encoder_hidden_states = DP.get_complete_tensor(encoder_hidden_states, dim=-2, group=seq_mesh)
-        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
+        encoder_hidden_states = DP.get_complete_tensor(encoder_hidden_states, dim=0, group=batch_mesh)
         encoder_attention_mask = DP.get_complete_tensor(encoder_attention_mask, dim=-1, group=seq_mesh)
-        encoder_attention_mask = DP.get_assigned_chunk(encoder_attention_mask, dim=0, group=batch_mesh)
+        encoder_attention_mask = DP.get_complete_tensor(encoder_attention_mask, dim=0, group=batch_mesh)
         with UnifiedAttnMode.disable():
             conditioning, caption_proj = original_time_embed_forward(
                 timestep, encoder_hidden_states, encoder_attention_mask, *args, **kwargs
