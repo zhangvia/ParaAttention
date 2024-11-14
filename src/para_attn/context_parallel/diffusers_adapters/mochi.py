@@ -73,6 +73,7 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
             conditioning, caption_proj = original_time_embed_forward(
                 timestep, encoder_hidden_states, encoder_attention_mask, *args, **kwargs
             )
+        conditioning = DP.get_assigned_chunk(conditioning, dim=0, group=batch_mesh)
         caption_proj = DP.get_assigned_chunk(caption_proj, dim=0, group=batch_mesh)
         caption_proj = DP.get_assigned_chunk(caption_proj, dim=-2, group=seq_mesh)
         return conditioning, caption_proj
