@@ -14,7 +14,7 @@ def parallelize_transformer(transformer: FluxTransformer2DModel, *, mesh=None) -
 
     mesh = init_context_parallel_mesh(transformer.device.type, mesh=mesh)
     batch_mesh = mesh["batch"]
-    seq_mesh = mesh["ulysses", "ring"]._flatten()
+    seq_mesh = mesh["ring", "ulysses"]._flatten()
 
     original_forward = transformer.forward
 

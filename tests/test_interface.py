@@ -204,10 +204,10 @@ class UnifiedAttnTest(ParallelAttnTest):
     def attn_mode(self, device):
         world_size = self.world_size
         if world_size % 2 == 0:
-            mesh_shape = (world_size // 2, 2)
+            mesh_shape = (2, world_size // 2)
         else:
-            mesh_shape = (world_size, 1)
-        mesh = dist.init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
+            mesh_shape = (1, world_size)
+        mesh = dist.init_device_mesh(device, mesh_shape, mesh_dim_names=("ring", "ulysses"))
         return para_attn_interface.UnifiedAttnMode(mesh)
 
     @pytest.mark.skipif("not torch.cuda.is_available()")
@@ -227,7 +227,8 @@ class UnifiedAttnTest(ParallelAttnTest):
         super()._test_attn_mode(dtype, device, B, H, S_Q, S_KV, D, is_causal, compile)
 
 
-# instantiate_parametrized_tests(RingAttnTest)
+instantiate_parametrized_tests(ParallelAttnTest)
+instantiate_parametrized_tests(RingAttnTest)
 instantiate_parametrized_tests(UlyssesAttnTest)
 instantiate_parametrized_tests(UnifiedAttnTest)
 

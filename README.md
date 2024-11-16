@@ -174,9 +174,9 @@ rank = dist.get_rank()
 
 assert world_size <= torch.cuda.device_count()
 if world_size % 2 == 0:
-    mesh_shape = (world_size // 2, 2)
+    mesh_shape = (2, world_size // 2)
 else:
-    mesh_shape = (world_size, 1)
+    mesh_shape = (1, world_size)
 
 B, H, S_Q, S_KV, D = 2, 24, 4096, 4096, 64
 dtype = torch.float16
@@ -204,7 +204,7 @@ with torch.no_grad(), torch.cuda.device(rank):
     func = torch.compile(func)
 
     for _ in range(2):
-        mesh = dist.init_device_mesh(device, mesh_shape, mesh_dim_names=("ulysses", "ring"))
+        mesh = dist.init_device_mesh(device, mesh_shape, mesh_dim_names=("ring", "ulysses"))
         with para_attn_interface.UnifiedAttnMode(mesh):
             out_slice = func(
                 query_slice,

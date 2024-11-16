@@ -132,7 +132,7 @@ class MochiPipelineTest(DiffusionPipelineTest):
         super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_batch, use_ring)
 
 
-# instantiate_parametrized_tests(DiffusionPipelineTest)
+instantiate_parametrized_tests(DiffusionPipelineTest)
 instantiate_parametrized_tests(FluxPipelineTest)
 instantiate_parametrized_tests(MochiPipelineTest)
 

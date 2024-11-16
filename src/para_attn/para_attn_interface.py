@@ -82,12 +82,6 @@ def ulysses_attn_func(
     query = _sdpa_input_all_to_all(query, mesh)
     key = _sdpa_input_all_to_all(key, mesh)
     value = _sdpa_input_all_to_all(value, mesh)
-    if attn_mask is not None:
-        s_q, s_kv = query.size(-2), key.size(-2)
-        if attn_mask.size(-1) != s_kv:
-            attn_mask = DP.get_complete_tensor(attn_mask, dim=-1, group=mesh)
-        elif attn_mask.size(-2) != s_q:
-            attn_mask = DP.get_complete_tensor(attn_mask, dim=-2, group=mesh)
 
     out = F.scaled_dot_product_attention(
         query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale
