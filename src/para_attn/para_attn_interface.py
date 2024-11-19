@@ -169,7 +169,7 @@ def ring_attn_func(
         dropout_p,
         is_causal,
         scale,
-        mesh,
+        pg,
     )
 
 
