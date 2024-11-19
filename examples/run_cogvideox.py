@@ -6,8 +6,8 @@ from diffusers.utils import export_to_video
 dist.init_process_group()
 
 pipe = CogVideoXPipeline.from_pretrained(
-    "THUDM/CogVideoX-2b",
-    torch_dtype=torch.float16,
+    "THUDM/CogVideoX-5b",
+    torch_dtype=torch.bfloat16,
 ).to(f"cuda:{dist.get_rank()}")
 
 # pipe.enable_model_cpu_offload()
