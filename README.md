@@ -9,6 +9,19 @@ This aims to provide:
 - [x] A unified interface to run context parallel attention (***cfg-ulysses-ring***), as well as keeping the maximum performance while working with `torch.compile`
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
 
+# Officially Supported Models
+
+You could run the following examples with `torchrun`.
+For example, to run FLUX with 2 GPUs:
+
+```bash
+torchrun --nproc_per_node=2 examples/run_flux.py
+```
+
+- [FLUX](examples/run_flux.py)
+- [Mochi](examples/run_mochi.py)
+- [CogVideoX](examples/run_cogvideox.py)
+
 # Performance
 
 | Model | GPU | Method | Wall Time (s) | Speedup |
@@ -68,14 +81,15 @@ pre-commit run --all-files
 ## Run FLUX.1-dev with Parallel Inference
 
 ``` python
-import torch 
+import torch
 import torch.distributed as dist
 from diffusers import FluxPipeline
 
 dist.init_process_group()
 
 pipe = FluxPipeline.from_pretrained(
-    "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
+    "black-forest-labs/FLUX.1-dev",
+    torch_dtype=torch.bfloat16,
 ).to(f"cuda:{dist.get_rank()}")
 
 from para_attn.context_parallel import init_context_parallel_mesh
@@ -90,24 +104,21 @@ parallelize_pipe(
 )
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipe.transformer = torch.compile(
-   pipe.transformer, mode="max-autotune-no-cudagraphs"
-)
+pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
-image = pipe(
-    "A cat holding a sign that says hello world", num_inference_steps=28
-).images[0]
+image = pipe("A cat holding a sign that says hello world", num_inference_steps=28).images[0]
 
 if dist.get_rank() == 0:
+    print("Saving image to flux.png")
     image.save("flux.png")
 
 dist.destroy_process_group()
 ```
 
-Save the above code to `test.py` and run it with `torchrun`:
+Save the above code to `run_flux.py` and run it with `torchrun`:
 
 ```bash
-torchrun --nproc_per_node=2 test.py
+torchrun --nproc_per_node=2 run_flux.py
 ```
 
 ## Run Mochi with Parallel Inference
@@ -121,7 +132,8 @@ from diffusers.utils import export_to_video
 dist.init_process_group()
 
 pipe = MochiPipeline.from_pretrained(
-    "genmo/mochi-1-preview", torch_dtype=torch.float16
+    "genmo/mochi-1-preview",
+    torch_dtype=torch.float16,
 ).to(f"cuda:{dist.get_rank()}")
 
 # Enable memory savings
@@ -141,24 +153,31 @@ parallelize_pipe(
 )
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipe.transformer = torch.compile(
-   pipe.transformer, mode="max-autotune-no-cudagraphs"
-)
+pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
 frames = pipe(prompt, num_frames=84).frames[0]
 
 if dist.get_rank() == 0:
+    print("Saving video to mochi.mp4")
     export_to_video(frames, "mochi.mp4", fps=30)
 
 dist.destroy_process_group()
 ```
 
-Save the above code to `test.py` and run it with `torchrun`:
+Save the above code to `run_mochi.py` and run it with `torchrun`:
 
 ```bash
-torchrun --nproc_per_node=2 test.py
+torchrun --nproc_per_node=2 run_mochi.py
 ```
+
+## All Examples
+
+| Model | Command |
+| - | - |
+| `FLUX` | `torchrun --nproc_per_node=2 examples/run_flux.py` |
+| `Mochi` | `torchrun --nproc_per_node=2 examples/run_mochi.py` |
+| `CogVideoX` | `torchrun --nproc_per_node=2 examples/run_cogvideox.py` |
 
 ## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
 
