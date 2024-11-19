@@ -63,10 +63,13 @@ def parallelize_transformer(transformer: FluxTransformer2DModel, *, mesh=None) -
                 **kwargs,
             )
 
+        return_dict = not isinstance(output, tuple)
         sample = output[0]
         sample = DP.get_complete_tensor(sample, dim=-2, group=seq_mesh)
         sample = DP.get_complete_tensor(sample, dim=0, group=batch_mesh)
-        return output.__class__(sample, *output[1:])
+        if return_dict:
+            return output.__class__(sample, *output[1:])
+        return (sample, *output[1:])
 
     new_forward = new_forward.__get__(transformer)
     transformer.forward = new_forward
