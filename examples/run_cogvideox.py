@@ -40,6 +40,7 @@ video = pipe(
 ).frames[0]
 
 if dist.get_rank() == 0:
+    print("Saving video to cogvideox.mp4")
     export_to_video(video, "cogvideox.mp4", fps=8)
 
 dist.destroy_process_group()

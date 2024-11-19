@@ -25,6 +25,7 @@ pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagra
 image = pipe("A cat holding a sign that says hello world", num_inference_steps=28).images[0]
 
 if dist.get_rank() == 0:
+    print("Saving image to flux.png")
     image.save("flux.png")
 
 dist.destroy_process_group()

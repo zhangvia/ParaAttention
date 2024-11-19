@@ -30,6 +30,7 @@ prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ult
 frames = pipe(prompt, num_frames=84).frames[0]
 
 if dist.get_rank() == 0:
+    print("Saving video to mochi.mp4")
     export_to_video(frames, "mochi.mp4", fps=30)
 
 dist.destroy_process_group()

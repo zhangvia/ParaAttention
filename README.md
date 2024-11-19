@@ -95,6 +95,7 @@ pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagra
 image = pipe("A cat holding a sign that says hello world", num_inference_steps=28).images[0]
 
 if dist.get_rank() == 0:
+    print("Saving image to flux.png")
     image.save("flux.png")
 
 dist.destroy_process_group()
@@ -141,6 +142,7 @@ prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ult
 frames = pipe(prompt, num_frames=84).frames[0]
 
 if dist.get_rank() == 0:
+    print("Saving video to mochi.mp4")
     export_to_video(frames, "mochi.mp4", fps=30)
 
 dist.destroy_process_group()
