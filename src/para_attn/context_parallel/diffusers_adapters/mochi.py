@@ -66,15 +66,11 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
         **kwargs,
     ):
         encoder_hidden_states = DP.get_complete_tensor(encoder_hidden_states, dim=-2, group=seq_mesh)
-        encoder_hidden_states = DP.get_complete_tensor(encoder_hidden_states, dim=0, group=batch_mesh)
         encoder_attention_mask = DP.get_complete_tensor(encoder_attention_mask, dim=-1, group=seq_mesh)
-        encoder_attention_mask = DP.get_complete_tensor(encoder_attention_mask, dim=0, group=batch_mesh)
         with UnifiedAttnMode.disable():
             conditioning, caption_proj = original_time_embed_forward(
                 timestep, encoder_hidden_states, encoder_attention_mask, *args, **kwargs
             )
-        conditioning = DP.get_assigned_chunk(conditioning, dim=0, group=batch_mesh)
-        caption_proj = DP.get_assigned_chunk(caption_proj, dim=0, group=batch_mesh)
         caption_proj = DP.get_assigned_chunk(caption_proj, dim=-2, group=seq_mesh)
         return conditioning, caption_proj
 

@@ -66,6 +66,41 @@ def parallelize_transformer(transformer: CogVideoXTransformer3DModel, *, mesh=No
     new_forward = new_forward.__get__(transformer)
     transformer.forward = new_forward
 
+    original_patch_embed_forward = transformer.patch_embed.forward
+
+    @functools.wraps(transformer.patch_embed.__class__.forward)
+    def new_patch_embed_forward(
+        self,
+        text_embeds: torch.Tensor,
+        image_embeds: torch.Tensor,
+        *args,
+        **kwargs,
+    ):
+        text_embeds = DP.get_complete_tensor(text_embeds, dim=-2, group=seq_mesh)
+        image_embeds = DP.get_complete_tensor(image_embeds, dim=-2, group=seq_mesh)
+
+        batch, num_frames, channels, height, width = image_embeds.shape
+        seq_length = text_embeds.shape[-2]
+
+        embeds = original_patch_embed_forward(
+            text_embeds,
+            image_embeds,
+            *args,
+            **kwargs,
+        )
+
+        text_embeds = embeds[:, :seq_length]
+        image_embeds = embeds[:, seq_length:].reshape(batch, num_frames, height * width, -1)
+        text_embeds = DP.get_assigned_chunk(text_embeds, dim=-2, group=seq_mesh)
+        image_embeds = DP.get_assigned_chunk(image_embeds, dim=-2, group=seq_mesh)
+        image_embeds = image_embeds.flatten(1, 2)
+        embeds = torch.cat([text_embeds, image_embeds], dim=1)
+
+        return embeds
+
+    new_patch_embed_forward = new_patch_embed_forward.__get__(transformer.patch_embed)
+    transformer.patch_embed.forward = new_patch_embed_forward
+
 
 def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, mesh=None) -> None:
     assert isinstance(pipe, DiffusionPipeline)
