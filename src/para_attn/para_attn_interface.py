@@ -1,16 +1,21 @@
 import contextlib
+import unittest
 
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
 from torch.overrides import TorchFunctionMode
 
+import para_attn
 import para_attn.primitives as DP
 
 try:
     from torch.distributed.tensor.experimental._attention import _templated_ring_attention
 except ImportError:
     _templated_ring_attention = None
+
+if _templated_ring_attention is not None:
+    import torch.distributed.tensor.experimental._attention as torch_ring_attention
 
 para_attn_ops = torch.ops.para_attn
 
@@ -106,17 +111,23 @@ class RingAttnFunc(torch.autograd.Function):
     ):
         assert _templated_ring_attention is not None, "RingAttnFunc requires a newer version of PyTorch"
 
-        out, lse = _templated_ring_attention(
-            mesh,
-            para_attn_ops.attention_forward_with_lse,
-            query,
-            key,
-            value,
-            attn_mask=attn_mask,
-            dropout_p=dropout_p,
-            is_causal=is_causal,
-            scale=scale,
-        )
+        with unittest.mock.patch.object(
+            torch_ring_attention,
+            "_convert_to_f32",
+            not para_attn.config.attention.allow_reduced_precision_compute,
+            create=True,
+        ):
+            out, lse = _templated_ring_attention(
+                mesh,
+                para_attn_ops.attention_forward_with_lse,
+                query,
+                key,
+                value,
+                attn_mask=attn_mask,
+                dropout_p=dropout_p,
+                is_causal=is_causal,
+                scale=scale,
+            )
         return out
 
     @staticmethod
