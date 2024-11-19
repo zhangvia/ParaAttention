@@ -1,6 +1,6 @@
 # ParaAttention
 
-Context parallel attention that works with torch.compile,
+Context parallel attention that works with `torch.compile`,
 supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Ring Style**](https://arxiv.org/abs/2310.01889) parallelism.
 
 This aims to provide:
@@ -8,6 +8,13 @@ This aims to provide:
 - [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX` and `Mochi` inference much faster losslessly.
 - [x] A unified interface to run context parallel attention (***cfg-ulysses-ring***), as well as keeping the maximum performance while working with `torch.compile`
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
+
+What's different from other implementations:
+
+- No unnecessary graph breaks during `torch.compile`. All the heavy computations are captured in a single graph and get the maximum opportunity to be optimized. This makes it possible for the backend compiler to optimize the graph more effectively, for example, by overlapping the computation and communication.
+- Easy to use. You don't need to change the code of the model to enable context parallelism. Instead, you only need to call a function to parallelize the model.
+- Easy to use, too. If you want to use context parallelism with your custom model, you only need to wrap the call with our special `TorchFunctionMode` context manager.
+- Easy to adjust. You can adjust the parallelism style and the mesh shape with a few lines of code.
 
 # Officially Supported Models
 
