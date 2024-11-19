@@ -24,9 +24,12 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
         hidden_states: torch.Tensor,
         encoder_hidden_states: torch.Tensor,
         *args,
+        timestep: torch.LongTensor,
         encoder_attention_mask: torch.Tensor,
         **kwargs,
     ):
+        if isinstance(timestep, torch.Tensor) and timestep.ndim != 0 and timestep.shape[0] == hidden_states.shape[0]:
+            timestep = DP.get_assigned_chunk(timestep, dim=0, group=batch_mesh)
         hidden_states = DP.get_assigned_chunk(hidden_states, dim=0, group=batch_mesh)
         hidden_states = DP.get_assigned_chunk(hidden_states, dim=-2, group=seq_mesh)
         encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
@@ -39,6 +42,7 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None) 
                 hidden_states,
                 encoder_hidden_states,
                 *args,
+                timestep=timestep,
                 encoder_attention_mask=encoder_attention_mask,
                 **kwargs,
             )

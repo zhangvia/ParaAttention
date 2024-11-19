@@ -23,11 +23,14 @@ def parallelize_transformer(transformer: CogVideoXTransformer3DModel, *, mesh=No
         self,
         hidden_states: torch.Tensor,
         encoder_hidden_states: torch.Tensor,
+        timestep: Union[int, float, torch.LongTensor],
         *args,
         image_rotary_emb: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         **kwargs,
     ):
         temporal_size = hidden_states.shape[1]
+        if isinstance(timestep, torch.Tensor) and timestep.ndim != 0 and timestep.shape[0] == hidden_states.shape[0]:
+            timestep = DP.get_assigned_chunk(timestep, dim=0, group=batch_mesh)
         hidden_states = DP.get_assigned_chunk(hidden_states, dim=0, group=batch_mesh)
         hidden_states = DP.get_assigned_chunk(hidden_states, dim=-2, group=seq_mesh)
         encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
@@ -51,6 +54,7 @@ def parallelize_transformer(transformer: CogVideoXTransformer3DModel, *, mesh=No
                 hidden_states,
                 encoder_hidden_states,
                 *args,
+                timestep=timestep,
                 image_rotary_emb=image_rotary_emb,
                 **kwargs,
             )
@@ -90,7 +94,7 @@ def parallelize_transformer(transformer: CogVideoXTransformer3DModel, *, mesh=No
         )
 
         text_embeds = embeds[:, :seq_length]
-        image_embeds = embeds[:, seq_length:].reshape(batch, num_frames, height * width, -1)
+        image_embeds = embeds[:, seq_length:].reshape(batch, num_frames, -1, embeds.shape[-1])
         text_embeds = DP.get_assigned_chunk(text_embeds, dim=-2, group=seq_mesh)
         image_embeds = DP.get_assigned_chunk(image_embeds, dim=-2, group=seq_mesh)
         image_embeds = image_embeds.flatten(1, 2)
