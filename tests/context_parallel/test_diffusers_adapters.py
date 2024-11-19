@@ -132,9 +132,49 @@ class MochiPipelineTest(DiffusionPipelineTest):
         super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_batch, use_ring)
 
 
+class CogVideoXPipelineTest(DiffusionPipelineTest):
+    def new_pipe(self, dtype, device):
+        from diffusers import MochiPipeline
+
+        pipe = MochiPipeline.from_pretrained(
+            "THUDM/CogVideoX-5b",
+            torch_dtype=dtype,
+        ).to(f"{device}:{self.rank}")
+        pipe.vae.enable_slicing()
+        pipe.vae.enable_tiling()
+        return pipe
+
+    def call_pipe(self, pipe, *args, **kwargs):
+        prompt = "A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance."
+        return pipe(
+            prompt=prompt,
+            num_videos_per_prompt=1,
+            num_inference_steps=50,
+            num_frames=49,
+            guidance_scale=6,
+        )
+
+    @pytest.mark.skipif("not torch.cuda.is_available()")
+    @with_comms
+    @parametrize("dtype", [torch.bfloat16])
+    @parametrize("device", ["cuda"])
+    @parametrize(
+        "parallelize,compile,use_batch,use_ring",
+        [
+            [False, False, False, False],
+            [False, True, False, False],
+            [True, False, True, True],
+            [True, True, True, True],
+        ],
+    )
+    def test_benchmark_pipe(self, dtype, device, parallelize, compile, use_batch, use_ring):
+        super()._test_benchmark_pipe(dtype, device, parallelize, compile, use_batch, use_ring)
+
+
 instantiate_parametrized_tests(DiffusionPipelineTest)
 instantiate_parametrized_tests(FluxPipelineTest)
 instantiate_parametrized_tests(MochiPipelineTest)
+instantiate_parametrized_tests(CogVideoXPipelineTest)
 
 if __name__ == "__main__":
     run_tests()
