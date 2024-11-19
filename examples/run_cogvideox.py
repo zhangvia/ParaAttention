@@ -6,14 +6,14 @@ from diffusers.utils import export_to_video
 dist.init_process_group()
 
 pipe = CogVideoXPipeline.from_pretrained(
-    "THUDM/CogVideoX1.5-5B",
-    torch_dtype=torch.bfloat16,
+    "THUDM/CogVideoX-2b",
+    torch_dtype=torch.float16,
 ).to(f"cuda:{dist.get_rank()}")
 
-# Enable memory savings
+# pipe.enable_model_cpu_offload()
 # pipe.enable_sequential_cpu_offload()
-pipe.vae.enable_tiling()
 pipe.vae.enable_slicing()
+pipe.vae.enable_tiling()
 
 from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
@@ -35,7 +35,7 @@ video = pipe(
     prompt=prompt,
     num_videos_per_prompt=1,
     num_inference_steps=50,
-    num_frames=81,
+    num_frames=49,
     guidance_scale=6,
     # generator=torch.Generator(device=pipe.device).manual_seed(42),
 ).frames[0]

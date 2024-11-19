@@ -164,7 +164,7 @@ torchrun --nproc_per_node=2 run_mochi.py
 | - | - |
 | `FLUX.1-dev` | `torchrun --nproc_per_node=2 examples/run_flux.py` |
 | `mochi-1-preview` | `torchrun --nproc_per_node=2 examples/run_mochi.py` |
-| `CogVideoX1.5-5B` | `torchrun --nproc_per_node=2 examples/run_cogvideox.py` |
+| `CogVideoX-2b` | `torchrun --nproc_per_node=2 examples/run_cogvideox.py` |
 
 ## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
 
