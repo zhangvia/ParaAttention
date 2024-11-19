@@ -11,6 +11,13 @@ This aims to provide:
 
 # Officially Supported Models
 
+You could run the following examples with `torchrun`.
+For example, to run FLUX with 2 GPUs:
+
+```bash
+torchrun --nproc_per_node=2 examples/run_flux.py
+```
+
 - [FLUX](examples/run_flux.py)
 - [Mochi](examples/run_mochi.py)
 - [CogVideoX](examples/run_cogvideox.py)
