@@ -9,6 +9,12 @@ This aims to provide:
 - [x] A unified interface to run context parallel attention (***cfg-ulysses-ring***), as well as keeping the maximum performance while working with `torch.compile`
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
 
+# Officially Supported Models
+
+- [FLUX](examples/run_flux.py)
+- [Mochi](examples/run_mochi.py)
+- [CogVideoX](examples/run_cogvideox.py)
+
 # Performance
 
 | Model | GPU | Method | Wall Time (s) | Speedup |
@@ -162,9 +168,9 @@ torchrun --nproc_per_node=2 run_mochi.py
 
 | Model | Command |
 | - | - |
-| `FLUX.1-dev` | `torchrun --nproc_per_node=2 examples/run_flux.py` |
-| `mochi-1-preview` | `torchrun --nproc_per_node=2 examples/run_mochi.py` |
-| `CogVideoX-2b` | `torchrun --nproc_per_node=2 examples/run_cogvideox.py` |
+| `FLUX` | `torchrun --nproc_per_node=2 examples/run_flux.py` |
+| `Mochi` | `torchrun --nproc_per_node=2 examples/run_mochi.py` |
+| `CogVideoX` | `torchrun --nproc_per_node=2 examples/run_cogvideox.py` |
 
 ## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
 
