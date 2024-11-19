@@ -5,7 +5,10 @@ from diffusers.utils import export_to_video
 
 dist.init_process_group()
 
-pipe = MochiPipeline.from_pretrained("genmo/mochi-1-preview", torch_dtype=torch.float16).to(f"cuda:{dist.get_rank()}")
+pipe = MochiPipeline.from_pretrained(
+    "genmo/mochi-1-preview",
+    torch_dtype=torch.float16,
+).to(f"cuda:{dist.get_rank()}")
 
 # Enable memory savings
 # pipe.enable_model_cpu_offload()

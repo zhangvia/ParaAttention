@@ -5,9 +5,10 @@ from diffusers.utils import export_to_video
 
 dist.init_process_group()
 
-pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX1.5-5B", torch_dtype=torch.bfloat16).to(
-    f"cuda:{dist.get_rank()}"
-)
+pipe = CogVideoXPipeline.from_pretrained(
+    "THUDM/CogVideoX1.5-5B",
+    torch_dtype=torch.bfloat16,
+).to(f"cuda:{dist.get_rank()}")
 
 # Enable memory savings
 # pipe.enable_sequential_cpu_offload()

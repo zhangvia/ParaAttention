@@ -4,9 +4,10 @@ from diffusers import FluxPipeline
 
 dist.init_process_group()
 
-pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16).to(
-    f"cuda:{dist.get_rank()}"
-)
+pipe = FluxPipeline.from_pretrained(
+    "black-forest-labs/FLUX.1-dev",
+    torch_dtype=torch.bfloat16,
+).to(f"cuda:{dist.get_rank()}")
 
 from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
