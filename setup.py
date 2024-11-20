@@ -33,7 +33,7 @@ def fetch_requirements():
 
 
 setup(
-    name="para-attn",
+    name="para_attn",
     use_scm_version={"write_to": path.join("src", "para_attn", "_version.py"), "local_scheme": my_local_scheme},
     package_dir={
         "": "src",
