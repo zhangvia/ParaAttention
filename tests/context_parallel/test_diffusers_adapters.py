@@ -134,9 +134,9 @@ class MochiPipelineTest(DiffusionPipelineTest):
 
 class CogVideoXPipelineTest(DiffusionPipelineTest):
     def new_pipe(self, dtype, device):
-        from diffusers import MochiPipeline
+        from diffusers import CogVideoXPipeline
 
-        pipe = MochiPipeline.from_pretrained(
+        pipe = CogVideoXPipeline.from_pretrained(
             "THUDM/CogVideoX-5b",
             torch_dtype=dtype,
         ).to(f"{device}:{self.rank}")
