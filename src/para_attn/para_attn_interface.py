@@ -173,6 +173,43 @@ def ring_attn_func(
     )
 
 
+def in_batch_attn_func(
+    query,
+    key,
+    value,
+    attn_mask=None,
+    dropout_p=0.0,
+    is_causal=False,
+    *,
+    scale=None,
+):
+    assert query.ndim == 4, "query must have 4 dimensions, got {}".format(query.ndim)
+    assert key.ndim == 4, "key must have 4 dimensions, got {}".format(key.ndim)
+    assert value.ndim == 4, "value must have 4 dimensions, got {}".format(value.ndim)
+    assert attn_mask is None, "attn_mask is not supported in in_batch_attn_func"
+    assert not is_causal, "is_causal is not supported in in_batch_attn_func"
+
+    b, h, s_q, d_qk = query.shape
+    _, _, s_kv, d_v = value.shape
+
+    query = query.permute(1, 0, 2, 3).reshape(1, h, b * s_q, -1)
+    key = key.permute(1, 0, 2, 3).reshape(1, h, b * s_kv, -1)
+    value = value.permute(1, 0, 2, 3).reshape(1, h, b * s_kv, -1)
+
+    out = F.scaled_dot_product_attention(
+        query,
+        key,
+        value,
+        attn_mask=attn_mask,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
+    )
+
+    out = out.reshape(h, b, s_q, -1).permute(1, 0, 2, 3)
+    return out
+
+
 def _get_arg(args, kwargs, *field):
     if len(field) == 1:
         if isinstance(field, int):
@@ -247,7 +284,6 @@ class UlyssesAttnMode(TorchFunctionMode):
     def __init__(self, mesh=None):
         super().__init__()
         self._mesh = mesh
-        self._inside_func = False
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
@@ -373,3 +409,46 @@ class UnifiedAttnMode(TorchFunctionMode):
             yield
         finally:
             self._parallel_method = old_parallel_method
+
+
+class InBatchAttnMode(TorchFunctionMode):
+    disabled = False
+
+    @torch.compiler.disable()
+    def __init__(self, mesh=None):
+        super().__init__()
+        self._mesh = mesh
+
+    def __torch_function__(self, func, types, args=(), kwargs=None):
+        kwargs = {} if kwargs is None else kwargs
+
+        if self.disabled:
+            return func(*args, **kwargs)
+
+        if func is torch.nn.functional.scaled_dot_product_attention:
+            return in_batch_attn_func(*args, **kwargs, mesh=self._mesh)
+
+        return func(*args, **kwargs)
+
+    @torch.compiler.disable()
+    def __enter__(self):
+        super().__enter__()
+
+    @torch.compiler.disable()
+    def __exit__(self, *args):
+        super().__exit__(*args)
+
+    @contextlib.contextmanager
+    def disable(cls):
+        old_disabled = cls._set_disabled(True)
+        try:
+            yield
+        finally:
+            cls._set_disabled(old_disabled)
+
+    @classmethod
+    @torch.compiler.disable()
+    def _set_disabled(cls, value):
+        old_disabled = cls.disabled
+        cls.disabled = value
+        return old_disabled
