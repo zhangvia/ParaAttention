@@ -30,10 +30,14 @@ torch._inductor.config.reorder_for_compute_comm_overlap = True
 pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
-frames = pipe(prompt, num_frames=84).frames[0]
+video = pipe(
+    prompt,
+    num_frames=84,
+    output_type="pil" if dist.get_rank() == 0 else "latent",
+).frames[0]
 
 if dist.get_rank() == 0:
     print("Saving video to mochi.mp4")
-    export_to_video(frames, "mochi.mp4", fps=30)
+    export_to_video(video, "mochi.mp4", fps=30)
 
 dist.destroy_process_group()

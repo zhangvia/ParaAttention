@@ -23,8 +23,10 @@ __all__ = [
     "UnifiedAttnMode",
     "RingAttnMode",
     "UlyssesAttnMode",
+    "InBatchAttnMode",
     "ring_attn_func",
     "ulysses_attn_func",
+    "in_batch_attn_func",
 ]
 
 
@@ -415,9 +417,8 @@ class InBatchAttnMode(TorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable()
-    def __init__(self, mesh=None):
+    def __init__(self):
         super().__init__()
-        self._mesh = mesh
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
@@ -426,7 +427,7 @@ class InBatchAttnMode(TorchFunctionMode):
             return func(*args, **kwargs)
 
         if func is torch.nn.functional.scaled_dot_product_attention:
-            return in_batch_attn_func(*args, **kwargs, mesh=self._mesh)
+            return in_batch_attn_func(*args, **kwargs)
 
         return func(*args, **kwargs)
 

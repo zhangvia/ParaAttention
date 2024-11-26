@@ -79,6 +79,7 @@ class FluxPipelineTest(DiffusionPipelineTest):
         return pipe(
             "A cat holding a sign that says hello world",
             num_inference_steps=28,
+            output_type="pil" if self.rank == 0 else "latent",
         )
 
     @pytest.mark.skipif("not torch.cuda.is_available()")
@@ -113,6 +114,7 @@ class MochiPipelineTest(DiffusionPipelineTest):
         return pipe(
             "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k.",
             num_frames=84,
+            output_type="pil" if self.rank == 0 else "latent",
         )
 
     @pytest.mark.skipif("not torch.cuda.is_available()")
@@ -152,6 +154,7 @@ class CogVideoXPipelineTest(DiffusionPipelineTest):
             num_inference_steps=50,
             num_frames=49,
             guidance_scale=6,
+            output_type="pil" if self.rank == 0 else "latent",
         )
 
     @pytest.mark.skipif("not torch.cuda.is_available()")
