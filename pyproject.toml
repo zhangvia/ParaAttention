@@ -1,6 +1,6 @@
 [project]
 
-name = "para-attn"
+name = "para_attn"
 # version = "0.0.1"  # Remove any existing version parameter.
 dynamic = ["version", "dependencies", "optional-dependencies"]
 requires-python = ">=3.8"
