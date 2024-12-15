@@ -31,7 +31,7 @@ image = pipe(
     "A cat holding a sign that says hello world",
     num_inference_steps=28,
     output_type="pil" if dist.get_rank() == 0 else "latent",
-)
+).images[0]
 
 if dist.get_rank() == 0:
     print("Saving image to flux.png")

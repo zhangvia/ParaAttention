@@ -121,7 +121,7 @@ image = pipe(
     "A cat holding a sign that says hello world",
     num_inference_steps=28,
     output_type="pil" if dist.get_rank() == 0 else "latent",
-)
+).images[0]
 
 if dist.get_rank() == 0:
     print("Saving image to flux.png")
@@ -188,6 +188,28 @@ Save the above code to `run_mochi.py` and run it with `torchrun`:
 
 ```bash
 torchrun --nproc_per_node=2 run_mochi.py
+```
+
+## Parallelize VAE
+
+VAE can be parallelized with `para_attn.parallel_vae.diffusers_adapters.parallelize_vae`.
+Currently, only `AutoencoderKL` is supported.
+
+``` python
+import torch
+import torch.distributed as dist
+from diffusers import AutoencoderKL
+
+dist.init_process_group()
+
+vae = AutoencoderKL.from_pretrained(
+    "black-forest-labs/FLUX.1-dev",
+    torch_dtype=torch.bfloat16,
+).to(f"cuda:{dist.get_rank()}")
+
+from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
+
+vae = parallelize_vae(vae)
 ```
 
 ## All Examples
