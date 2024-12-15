@@ -11,6 +11,7 @@ pipe = FluxPipeline.from_pretrained(
 
 from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
+from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
 
 parallelize_pipe(
     pipe,
@@ -19,6 +20,7 @@ parallelize_pipe(
         max_ring_dim_size=2,
     ),
 )
+parallelize_vae(pipe.vae, mesh=pipe.mesh._flatten())
 
 torch._inductor.config.reorder_for_compute_comm_overlap = True
 pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
