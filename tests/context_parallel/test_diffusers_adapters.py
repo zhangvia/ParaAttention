@@ -51,6 +51,10 @@ class DiffusionPipelineTest(DTensorTestBase):
             mesh = self.mesh(device, use_batch=use_batch, use_ring=use_ring)
             parallelize_pipe(pipe, mesh=mesh)
 
+            from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
+
+            parallelize_vae(pipe.vae, mesh=mesh._flatten())
+
         if compile:
             if parallelize:
                 torch._inductor.config.reorder_for_compute_comm_overlap = True

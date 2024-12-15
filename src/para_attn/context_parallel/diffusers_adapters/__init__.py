@@ -3,7 +3,7 @@ import importlib
 from diffusers import DiffusionPipeline
 
 
-def parallelize_transformer(transformer, *args, **kwargs) -> None:
+def parallelize_transformer(transformer, *args, **kwargs):
     transformer_cls_name = transformer.__class__.__name__
     if transformer_cls_name.startswith("Flux"):
         adapter_name = "flux"
@@ -16,10 +16,10 @@ def parallelize_transformer(transformer, *args, **kwargs) -> None:
 
     adapter_module = importlib.import_module(f".{adapter_name}", __package__)
     parallelize_transformer_fn = getattr(adapter_module, "parallelize_transformer")
-    parallelize_transformer_fn(transformer, *args, **kwargs)
+    return parallelize_transformer_fn(transformer, *args, **kwargs)
 
 
-def parallelize_pipe(pipe: DiffusionPipeline, *args, **kwargs) -> None:
+def parallelize_pipe(pipe: DiffusionPipeline, *args, **kwargs):
     assert isinstance(pipe, DiffusionPipeline)
 
     pipe_cls_name = pipe.__class__.__name__
@@ -34,4 +34,4 @@ def parallelize_pipe(pipe: DiffusionPipeline, *args, **kwargs) -> None:
 
     adapter_module = importlib.import_module(f".{adapter_name}", __package__)
     parallelize_pipe_fn = getattr(adapter_module, "parallelize_pipe")
-    parallelize_pipe_fn(pipe, *args, **kwargs)
+    return parallelize_pipe_fn(pipe, *args, **kwargs)

@@ -9,9 +9,7 @@ from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.para_attn_interface import UnifiedAttnMode
 
 
-def parallelize_transformer(transformer: FluxTransformer2DModel, *, mesh=None) -> None:
-    assert isinstance(transformer, FluxTransformer2DModel)
-
+def parallelize_transformer(transformer: FluxTransformer2DModel, *, mesh=None):
     mesh = init_context_parallel_mesh(transformer.device.type, mesh=mesh)
     batch_mesh = mesh["batch"]
     seq_mesh = mesh["ring", "ulysses"]._flatten()
@@ -78,10 +76,10 @@ def parallelize_transformer(transformer: FluxTransformer2DModel, *, mesh=None) -
     new_forward = new_forward.__get__(transformer)
     transformer.forward = new_forward
 
+    return transformer
 
-def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, mesh=None) -> None:
-    assert isinstance(pipe, DiffusionPipeline)
 
+def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, mesh=None):
     original_call = pipe.__class__.__call__
 
     if not getattr(original_call, "is_parallelized", False):
@@ -105,3 +103,5 @@ def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, me
 
     if not shallow_patch:
         parallelize_transformer(pipe.transformer, mesh=mesh)
+
+    return pipe
