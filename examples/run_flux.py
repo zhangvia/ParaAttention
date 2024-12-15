@@ -13,12 +13,11 @@ from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
 
-mesh = (
-    init_context_parallel_mesh(
-        pipe.device.type,
-        max_ring_dim_size=2,
-    ),
+mesh = init_context_parallel_mesh(
+    pipe.device.type,
+    max_ring_dim_size=2,
 )
+
 parallelize_pipe(
     pipe,
     mesh=mesh,
