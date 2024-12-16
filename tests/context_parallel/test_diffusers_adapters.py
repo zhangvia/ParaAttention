@@ -47,9 +47,11 @@ class DiffusionPipelineTest(DTensorTestBase):
 
         if parallelize:
             from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
+            from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
 
             mesh = self.mesh(device, use_batch=use_batch, use_ring=use_ring)
             parallelize_pipe(pipe, mesh=mesh)
+            parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
         if compile:
             if parallelize:
