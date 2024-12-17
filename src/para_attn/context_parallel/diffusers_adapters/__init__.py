@@ -11,6 +11,8 @@ def parallelize_transformer(transformer, *args, **kwargs):
         adapter_name = "mochi"
     elif transformer_cls_name.startswith("CogVideoX"):
         adapter_name = "cogvideox"
+    elif transformer_cls_name.startswith("HunyuanVideo"):
+        adapter_name = "hunyuan_video"
     else:
         raise ValueError(f"Unknown transformer class name: {transformer_cls_name}")
 
@@ -29,6 +31,8 @@ def parallelize_pipe(pipe: DiffusionPipeline, *args, **kwargs):
         adapter_name = "mochi"
     elif pipe_cls_name.startswith("CogVideoX"):
         adapter_name = "cogvideox"
+    elif pipe_cls_name.startswith("HunyuanVideo"):
+        adapter_name = "hunyuan_video"
     else:
         raise ValueError(f"Unknown pipeline class name: {pipe_cls_name}")
 

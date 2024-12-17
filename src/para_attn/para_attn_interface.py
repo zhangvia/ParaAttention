@@ -148,8 +148,6 @@ def ring_attn_func(
     scale=None,
     mesh=None,
 ):
-    assert attn_mask is None, "attn_mask is not supported in ring_attn_func"
-
     pg = DP.get_group(mesh)
     world_size = DP.get_world_size(pg)
     if world_size <= 1:
@@ -162,6 +160,8 @@ def ring_attn_func(
             is_causal=is_causal,
             scale=scale,
         )
+
+    assert attn_mask is None, "attn_mask is not supported in ring_attn_func when world_size > 1"
 
     return RingAttnFunc.apply(
         query,
