@@ -135,7 +135,7 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
     original_first_transformer_block_forward = first_transformer_block.forward
 
     @functools.wraps(transformer_block.__class__.forward)
-    def new_transformer_block_forward(
+    def new_first_transformer_block_forward(
         self,
         hidden_states: torch.Tensor,
         encoder_hidden_states: torch.Tensor,
@@ -156,8 +156,8 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
 
         return output
 
-    new_transformer_block_forward = new_transformer_block_forward.__get__(first_transformer_block)
-    first_transformer_block.forward = new_transformer_block_forward
+    new_first_transformer_block_forward = new_first_transformer_block_forward.__get__(first_transformer_block)
+    first_transformer_block.forward = new_first_transformer_block_forward
 
     last_single_transformer_block = transformer.single_transformer_blocks[-1]
     original_last_single_transformer_block_forward = last_single_transformer_block.forward
