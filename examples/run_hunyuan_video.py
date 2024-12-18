@@ -32,7 +32,6 @@ pipe.vae.enable_tiling(
     tile_sample_stride_num_frames=24,
 )
 
-import para_attn
 from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
@@ -47,10 +46,11 @@ parallelize_pipe(
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
 # Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
-para_attn.config.attention.force_dispatch_to_custom_ops = True
+# import para_attn
+# para_attn.config.attention.force_dispatch_to_custom_ops = True
 
-torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+# torch._inductor.config.reorder_for_compute_comm_overlap = True
+# pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 output = pipe(
     prompt="A cat walks on the grass, realistic",

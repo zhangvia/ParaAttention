@@ -23,8 +23,8 @@ parallelize_pipe(
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
-torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+# torch._inductor.config.reorder_for_compute_comm_overlap = True
+# pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 image = pipe(
     "A cat holding a sign that says hello world",

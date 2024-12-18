@@ -121,8 +121,8 @@ parallelize_pipe(
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
-torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+# torch._inductor.config.reorder_for_compute_comm_overlap = True
+# pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 image = pipe(
     "A cat holding a sign that says hello world",
@@ -184,7 +184,6 @@ pipe.vae.enable_tiling(
     tile_sample_stride_num_frames=24,
 )
 
-import para_attn
 from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
@@ -199,10 +198,11 @@ parallelize_pipe(
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
 # Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
-para_attn.config.attention.force_dispatch_to_custom_ops = True
+# import para_attn
+# para_attn.config.attention.force_dispatch_to_custom_ops = True
 
-torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+# torch._inductor.config.reorder_for_compute_comm_overlap = True
+# pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 output = pipe(
     prompt="A cat walks on the grass, realistic",
@@ -257,8 +257,8 @@ parallelize_pipe(
     ),
 )
 
-torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+# torch._inductor.config.reorder_for_compute_comm_overlap = True
+# pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
 video = pipe(
@@ -332,7 +332,11 @@ B, H, S_Q, S_KV, D = 2, 24, 4096, 4096, 64
 dtype = torch.float16
 device = "cuda"
 
-torch._inductor.config.reorder_for_compute_comm_overlap = True
+def func(*args, **kwargs):
+    return F.scaled_dot_product_attention(*args, **kwargs)
+
+# torch._inductor.config.reorder_for_compute_comm_overlap = True
+# func = torch.compile(func)
 
 with torch.no_grad(), torch.cuda.device(rank):
     torch.manual_seed(0)
@@ -347,11 +351,6 @@ with torch.no_grad(), torch.cuda.device(rank):
     query_slice = query.chunk(world_size, dim=-2)[rank]
     key_slice = key.chunk(world_size, dim=-2)[rank]
     value_slice = value.chunk(world_size, dim=-2)[rank]
-
-    def func(*args, **kwargs):
-        return F.scaled_dot_product_attention(*args, **kwargs)
-
-    func = torch.compile(func)
 
     for _ in range(2):
         mesh = dist.init_device_mesh(device, mesh_shape, mesh_dim_names=("ring", "ulysses"))
