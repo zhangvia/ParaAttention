@@ -191,6 +191,9 @@ class HunyuanVideoPipelineTest(DiffusionPipelineTest):
     def new_pipe(self, dtype, device):
         from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel
 
+        # RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.
+        torch.backends.cuda.enable_cudnn_sdp(False)
+
         model_id = "tencent/HunyuanVideo"
         transformer = HunyuanVideoTransformer3DModel.from_pretrained(
             model_id,
@@ -207,13 +210,19 @@ class HunyuanVideoPipelineTest(DiffusionPipelineTest):
 
         pipe.vae.enable_tiling(
             # Make it runnable on GPUs with 48GB memory
-            # tile_sample_min_height=128,
-            # tile_sample_stride_height=96,
-            # tile_sample_min_width=128,
-            # tile_sample_stride_width=96,
-            # tile_sample_min_num_frames=32,
-            # tile_sample_stride_num_frames=24,
+            tile_sample_min_height=128,
+            tile_sample_stride_height=96,
+            tile_sample_min_width=128,
+            tile_sample_stride_width=96,
+            tile_sample_min_num_frames=32,
+            tile_sample_stride_num_frames=24,
         )
+
+        # Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
+        import para_attn
+
+        para_attn.config.attention.force_dispatch_to_custom_ops = True
+
         return pipe
 
     def call_pipe(self, pipe, *args, **kwargs):
