@@ -2,7 +2,7 @@ import functools
 
 import torch
 import torch.distributed as dist
-from diffusers import AutoencoderKL
+from diffusers import AutoencoderKLHunyuanVideo
 from diffusers.models.autoencoders.vae import DecoderOutput
 
 import para_attn.primitives as DP
@@ -23,7 +23,7 @@ def recv_tensor(src, group, device=None, dtype=None):
     return t
 
 
-def parallelize_vae(vae: AutoencoderKL, *, mesh=None):
+def parallelize_vae(vae: AutoencoderKLHunyuanVideo, *, mesh=None):
     mesh = init_parallel_vae_mesh(vae.device.type, mesh=mesh)
 
     group = DP.get_group(mesh)
@@ -32,28 +32,36 @@ def parallelize_vae(vae: AutoencoderKL, *, mesh=None):
 
     vae.enable_tiling()
 
-    @functools.wraps(vae.__class__._tiled_encode)
-    def new__tiled_encode(
+    @functools.wraps(vae.__class__.tiled_encode)
+    def new_tiled_encode(
         self,
         x: torch.Tensor,
         *args,
         **kwargs,
     ):
-        overlap_size = int(self.tile_sample_min_size * (1 - self.tile_overlap_factor))
-        blend_extent = int(self.tile_latent_min_size * self.tile_overlap_factor)
-        row_limit = self.tile_latent_min_size - blend_extent
+        batch_size, num_channels, num_frames, height, width = x.shape
+        latent_height = height // self.spatial_compression_ratio
+        latent_width = width // self.spatial_compression_ratio
 
-        # Split the image into 512x512 tiles and encode them separately.
+        tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
+        tile_latent_stride_height = self.tile_sample_stride_height // self.spatial_compression_ratio
+        tile_latent_stride_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+
+        blend_height = tile_latent_min_height - tile_latent_stride_height
+        blend_width = tile_latent_min_width - tile_latent_stride_width
+
+        # Split x into overlapping tiles and encode them separately.
+        # The tiles have an overlap to avoid seams between tiles.
         count = 0
         rows = []
-        for i in range(0, x.shape[2], overlap_size):
+        for i in range(0, height, self.tile_sample_stride_height):
             row = []
-            for j in range(0, x.shape[3], overlap_size):
+            for j in range(0, width, self.tile_sample_stride_width):
                 if count % world_size == rank:
-                    tile = x[:, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
+                    tile = x[:, :, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
                     tile = self.encoder(tile)
-                    if self.config.use_quant_conv:
-                        tile = self.quant_conv(tile)
+                    tile = self.quant_conv(tile)
                 else:
                     tile = None
                 row.append(tile)
@@ -82,20 +90,20 @@ def parallelize_vae(vae: AutoencoderKL, *, mesh=None):
                     # blend the above tile and the left tile
                     # to the current tile and add the current tile to the result row
                     if i > 0:
-                        tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
+                        tile = self.blend_v(rows[i - 1][j], tile, blend_height)
                     if j > 0:
-                        tile = self.blend_h(row[j - 1], tile, blend_extent)
-                    result_row.append(tile[:, :, :row_limit, :row_limit])
-                result_rows.append(torch.cat(result_row, dim=3))
+                        tile = self.blend_h(row[j - 1], tile, blend_width)
+                    result_row.append(tile[:, :, :, :tile_latent_stride_height, :tile_latent_stride_width])
+                result_rows.append(torch.cat(result_row, dim=-1))
 
-            enc = torch.cat(result_rows, dim=2)
+            enc = torch.cat(result_rows, dim=3)[:, :, :, :latent_height, :latent_width]
         else:
             enc = recv_tensor(rank - 1, group, device=x.device, dtype=x.dtype)
         if rank < world_size - 1:
             send_tensor(enc, rank + 1, group)
         return enc
 
-    vae._tiled_encode = new__tiled_encode.__get__(vae)
+    vae.tiled_encode = new_tiled_encode.__get__(vae)
 
     @functools.wraps(vae.__class__.tiled_decode)
     def new_tiled_decode(
@@ -105,21 +113,28 @@ def parallelize_vae(vae: AutoencoderKL, *, mesh=None):
         return_dict: bool = False,
         **kwargs,
     ):
-        overlap_size = int(self.tile_latent_min_size * (1 - self.tile_overlap_factor))
-        blend_extent = int(self.tile_sample_min_size * self.tile_overlap_factor)
-        row_limit = self.tile_sample_min_size - blend_extent
+        batch_size, num_channels, num_frames, height, width = z.shape
+        sample_height = height * self.spatial_compression_ratio
+        sample_width = width * self.spatial_compression_ratio
 
-        # Split z into overlapping 64x64 tiles and decode them separately.
+        tile_latent_min_height = self.tile_sample_min_height // self.spatial_compression_ratio
+        tile_latent_min_width = self.tile_sample_min_width // self.spatial_compression_ratio
+        tile_latent_stride_height = self.tile_sample_stride_height // self.spatial_compression_ratio
+        tile_latent_stride_width = self.tile_sample_stride_width // self.spatial_compression_ratio
+
+        blend_height = self.tile_sample_min_height - self.tile_sample_stride_height
+        blend_width = self.tile_sample_min_width - self.tile_sample_stride_width
+
+        # Split z into overlapping tiles and decode them separately.
         # The tiles have an overlap to avoid seams between tiles.
         count = 0
         rows = []
-        for i in range(0, z.shape[2], overlap_size):
+        for i in range(0, height, tile_latent_stride_height):
             row = []
-            for j in range(0, z.shape[3], overlap_size):
+            for j in range(0, width, tile_latent_stride_width):
                 if count % world_size == rank:
-                    tile = z[:, :, i : i + self.tile_latent_min_size, j : j + self.tile_latent_min_size]
-                    if self.config.use_post_quant_conv:
-                        tile = self.post_quant_conv(tile)
+                    tile = z[:, :, :, i : i + tile_latent_min_height, j : j + tile_latent_min_width]
+                    tile = self.post_quant_conv(tile)
                     decoded = self.decoder(tile)
                 else:
                     decoded = None
@@ -149,21 +164,21 @@ def parallelize_vae(vae: AutoencoderKL, *, mesh=None):
                     # blend the above tile and the left tile
                     # to the current tile and add the current tile to the result row
                     if i > 0:
-                        tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
+                        tile = self.blend_v(rows[i - 1][j], tile, blend_height)
                     if j > 0:
-                        tile = self.blend_h(row[j - 1], tile, blend_extent)
-                    result_row.append(tile[:, :, :row_limit, :row_limit])
-                result_rows.append(torch.cat(result_row, dim=3))
+                        tile = self.blend_h(row[j - 1], tile, blend_width)
+                    result_row.append(tile[:, :, :, : self.tile_sample_stride_height, : self.tile_sample_stride_width])
+                result_rows.append(torch.cat(result_row, dim=-1))
 
-            dec = torch.cat(result_rows, dim=2)
+            dec = torch.cat(result_rows, dim=3)[:, :, :, :sample_height, :sample_width]
         else:
             dec = recv_tensor(rank - 1, group, device=z.device, dtype=z.dtype)
         if rank < world_size - 1:
             send_tensor(dec, rank + 1, group)
+
         if not return_dict:
             return (dec,)
-
-        return DecoderOutput(sample=dec)
+        return DecoderOutput(dec, dec)
 
     vae.tiled_decode = new_tiled_decode.__get__(vae)
 

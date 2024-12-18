@@ -5,7 +5,7 @@ supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Rin
 
 This aims to provide:
 
-- [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX` and `Mochi` inference much faster losslessly.
+- [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX`, `HunyuanVideo` and `Mochi` inference much faster losslessly.
 - [x] A unified interface to run context parallel attention (***cfg-ulysses-ring***), as well as keeping the maximum performance while working with `torch.compile`
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
 
@@ -21,13 +21,21 @@ What's different from other implementations:
 You could run the following examples with `torchrun`.
 For example, to run FLUX with 2 GPUs:
 
+**NOTE**: To measure the performance correctly with `torch.compile`, you need to warm up the model by running it for a few iterations before measuring the performance.
+
 ```bash
+# Use --nproc_per_node to specify the number of GPUs
 torchrun --nproc_per_node=2 examples/run_flux.py
 ```
 
 - [FLUX](examples/run_flux.py)
+- [HunyuanVideo🚀](examples/run_hunyuan_video.py)
 - [Mochi](examples/run_mochi.py)
 - [CogVideoX](examples/run_cogvideox.py)
+
+NOTE: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
+It is suggested to run `HunyuanVideo` with GPUs with 80GB memory, or you might experience OOM errors,
+and the performance might be worse due to frequent memory re-allocation.
 
 # Performance
 
@@ -87,7 +95,7 @@ pre-commit run --all-files
 
 ## Run FLUX.1-dev with Parallel Inference
 
-``` python
+```python
 import torch
 import torch.distributed as dist
 from diffusers import FluxPipeline
@@ -107,7 +115,6 @@ mesh = init_context_parallel_mesh(
     pipe.device.type,
     max_ring_dim_size=2,
 )
-
 parallelize_pipe(
     pipe,
     mesh=mesh,
@@ -120,7 +127,7 @@ pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagra
 image = pipe(
     "A cat holding a sign that says hello world",
     num_inference_steps=28,
-    output_type="pil" if dist.get_rank() == 0 else "latent",
+    output_type="pil" if dist.get_rank() == 0 else "pt",
 ).images[0]
 
 if dist.get_rank() == 0:
@@ -136,9 +143,89 @@ Save the above code to `run_flux.py` and run it with `torchrun`:
 torchrun --nproc_per_node=2 run_flux.py
 ```
 
+## Run HunyuanVideo🚀 with Parallel Inference
+
+NOTE: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
+It is suggested to run `HunyuanVideo` with GPUs with 80GB memory, or you might experience OOM errors,
+and the performance might be worse due to frequent memory re-allocation.
+
+```python
+import torch
+import torch.distributed as dist
+from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel
+from diffusers.utils import export_to_video
+
+dist.init_process_group()
+
+model_id = "tencent/HunyuanVideo"
+transformer = HunyuanVideoTransformer3DModel.from_pretrained(
+    model_id,
+    subfolder="transformer",
+    torch_dtype=torch.bfloat16,
+    revision="refs/pr/18",
+)
+pipe = HunyuanVideoPipeline.from_pretrained(
+    model_id,
+    transformer=transformer,
+    torch_dtype=torch.float16,
+    revision="refs/pr/18",
+).to(f"cuda:{dist.get_rank()}")
+
+pipe.vae.enable_tiling(
+    # Make it runnable on GPUs with 48GB memory
+    tile_sample_min_height=128,
+    tile_sample_stride_height=96,
+    tile_sample_min_width=128,
+    tile_sample_stride_width=96,
+    tile_sample_min_num_frames=32,
+    tile_sample_stride_num_frames=24,
+)
+
+import para_attn
+from para_attn.context_parallel import init_context_parallel_mesh
+from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
+from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
+
+mesh = init_context_parallel_mesh(
+    pipe.device.type,
+)
+parallelize_pipe(
+    pipe,
+    mesh=mesh,
+)
+parallelize_vae(pipe.vae, mesh=mesh._flatten())
+
+# Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
+para_attn.config.attention.force_dispatch_to_custom_ops = True
+
+torch._inductor.config.reorder_for_compute_comm_overlap = True
+pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+
+output = pipe(
+    prompt="A cat walks on the grass, realistic",
+    height=320,
+    width=512,
+    num_frames=61,
+    num_inference_steps=30,
+    output_type="pil" if dist.get_rank() == 0 else "pt",
+).frames[0]
+
+if dist.get_rank() == 0:
+    print("Saving video to hunyuan_video.mp4")
+    export_to_video(output, "hunyuan_video.mp4", fps=15)
+
+dist.destroy_process_group()
+```
+
+Save the above code to `run_hunyuan_video.py` and run it with `torchrun`:
+
+```bash
+torchrun --nproc_per_node=2 run_hunyuan_video.py
+```
+
 ## Run Mochi with Parallel Inference
 
-``` python
+```python
 import torch
 import torch.distributed as dist
 from diffusers import MochiPipeline
@@ -174,7 +261,7 @@ prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ult
 video = pipe(
     prompt,
     num_frames=84,
-    output_type="pil" if dist.get_rank() == 0 else "latent",
+    output_type="pil" if dist.get_rank() == 0 else "pt",
 ).frames[0]
 
 if dist.get_rank() == 0:
@@ -222,7 +309,7 @@ vae = parallelize_vae(vae)
 
 ## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
 
-``` python
+```python
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F

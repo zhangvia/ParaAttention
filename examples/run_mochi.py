@@ -33,7 +33,7 @@ prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ult
 video = pipe(
     prompt,
     num_frames=84,
-    output_type="pil" if dist.get_rank() == 0 else "latent",
+    output_type="pil" if dist.get_rank() == 0 else "pt",
 ).frames[0]
 
 if dist.get_rank() == 0:

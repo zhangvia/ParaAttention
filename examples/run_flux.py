@@ -17,7 +17,6 @@ mesh = init_context_parallel_mesh(
     pipe.device.type,
     max_ring_dim_size=2,
 )
-
 parallelize_pipe(
     pipe,
     mesh=mesh,
@@ -30,7 +29,7 @@ pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagra
 image = pipe(
     "A cat holding a sign that says hello world",
     num_inference_steps=28,
-    output_type="pil" if dist.get_rank() == 0 else "latent",
+    output_type="pil" if dist.get_rank() == 0 else "pt",
 ).images[0]
 
 if dist.get_rank() == 0:

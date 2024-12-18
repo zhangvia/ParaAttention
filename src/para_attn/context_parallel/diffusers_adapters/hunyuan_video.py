@@ -47,10 +47,22 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
     new_context_embedder_forward = new_context_embedder_forward.__get__(transformer.context_embedder)
     transformer.context_embedder.forward = new_context_embedder_forward
 
+    """
+    torch._dynamo hit config.cache_size_limit (8)
+       function: 'new_transformer_block_forward'
+    """
+    transformer_transformer_blocks = transformer.transformer_blocks
+    for i in range(len(transformer_transformer_blocks)):
+        transformer_transformer_blocks[i].attn.processor = transformer_transformer_blocks[0].attn.processor
+
+    single_transformer_blocks = transformer.single_transformer_blocks
+    for i in range(len(single_transformer_blocks)):
+        single_transformer_blocks[i].attn.processor = single_transformer_blocks[0].attn.processor
+
     for transformer_block in itertools.chain(transformer.transformer_blocks, transformer.single_transformer_blocks):
 
         def patch_transformer_block(transformer_block):
-            original_transformer_block_forward = transformer_block.forward
+            original_transformer_block_forward = transformer_block.__class__.forward
 
             @functools.wraps(transformer_block.__class__.forward)
             def new_transformer_block_forward(
@@ -63,40 +75,26 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
                 *args,
                 **kwargs,
             ):
-                if attention_mask is not None:
-                    world_size = DP.get_world_size(seq_mesh)
+                world_size = DP.get_world_size(seq_mesh)
+                if attention_mask is not None and world_size > 1:
+                    assert attention_mask.dtype == torch.bool
                     hidden_states_len = hidden_states.shape[-2]
                     encoder_hidden_states_len = encoder_hidden_states.shape[-2]
-                    total_len = hidden_states_len + encoder_hidden_states_len
-                    # new_attention_mask = torch.ones_like(attention_mask)
-                    # for i in range(world_size):
-                    #     new_attention_mask[..., i * total_len : i * total_len + hidden_states_len, :] = attention_mask[
-                    #         ..., i * hidden_states_len : (i + 1) * hidden_states_len, :
-                    #     ]
-                    #     new_attention_mask[
-                    #         ..., i * total_len + hidden_states_len : (i + 1) * total_len, :
-                    #     ] = attention_mask[
-                    #         ...,
-                    #         world_size * hidden_states_len
-                    #         + i * encoder_hidden_states_len : world_size * hidden_states_len
-                    #         + (i + 1) * encoder_hidden_states_len,
-                    #         :,
-                    #     ]
-                    # attention_mask = new_attention_mask
-                    new_attention_mask = torch.ones_like(attention_mask)
+                    new_attention_mask = []
                     for i in range(world_size):
-                        # new_attention_mask[..., :, i * total_len : i * total_len + hidden_states_len] = attention_mask[
-                        #     ..., :, i * hidden_states_len : (i + 1) * hidden_states_len
-                        # ]
-                        new_attention_mask[
-                            ..., :, i * total_len + hidden_states_len : (i + 1) * total_len
-                        ] = attention_mask[
-                            ...,
-                            :,
-                            world_size * hidden_states_len
-                            + i * encoder_hidden_states_len : world_size * hidden_states_len
-                            + (i + 1) * encoder_hidden_states_len,
-                        ]
+                        new_attention_mask.append(
+                            attention_mask[..., :, i * hidden_states_len : (i + 1) * hidden_states_len]
+                        )
+                        new_attention_mask.append(
+                            attention_mask[
+                                ...,
+                                :,
+                                world_size * hidden_states_len
+                                + i * encoder_hidden_states_len : world_size * hidden_states_len
+                                + (i + 1) * encoder_hidden_states_len,
+                            ]
+                        )
+                    new_attention_mask = torch.cat(new_attention_mask, dim=-1)
                     attention_mask = new_attention_mask
 
                 if image_rotary_emb is not None:
@@ -111,6 +109,7 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
                     image_rotary_emb = (freqs_cos, freqs_sin)
 
                 output = original_transformer_block_forward(
+                    self,
                     hidden_states,
                     encoder_hidden_states,
                     temb,

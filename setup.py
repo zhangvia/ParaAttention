@@ -20,7 +20,7 @@ def is_git_directory(path="."):
 def my_local_scheme(version):
     # The following is used to build release packages.
     # Users should never use it.
-    local_version = os.getenv("AKVATTN_BUILD_LOCAL_VERSION")
+    local_version = os.getenv("PARA_ATTN_BUILD_LOCAL_VERSION")
     if local_version is None:
         return get_local_dirty_tag(version)
     return f"+{local_version}"

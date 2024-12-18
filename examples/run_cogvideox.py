@@ -38,7 +38,7 @@ video = pipe(
     num_frames=49,
     guidance_scale=6,
     # generator=torch.Generator(device=pipe.device).manual_seed(42),
-    output_type="pil" if dist.get_rank() == 0 else "latent",
+    output_type="pil" if dist.get_rank() == 0 else "pt",
 ).frames[0]
 
 if dist.get_rank() == 0:
