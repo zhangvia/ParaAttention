@@ -33,7 +33,7 @@ torchrun --nproc_per_node=2 examples/run_flux.py
 - [Mochi](examples/run_mochi.py)
 - [CogVideoX](examples/run_cogvideox.py)
 
-NOTE: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
+**NOTE**: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
 It is suggested to run `HunyuanVideo` with GPUs with 80GB memory, or you might experience OOM errors,
 and the performance might be worse due to frequent memory re-allocation.
 
@@ -58,7 +58,7 @@ and the performance might be worse due to frequent memory re-allocation.
 | mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (cfg + ring)` | 61.206 | 3.21x |
 | mochi-1-preview | A100-SXM4-80GB x 4 | `para-attn (cfg + ring)` + `torch.compile` | 47.100 | 4.17x |
 
-NOTE: The speedup of iterations per second is generally higher than the speedup of wall time, because the wall time includes the overhead of calling the text encoder and vae decoder.
+**NOTE**: The speedup of iterations per second is generally higher than the speedup of wall time, because the wall time includes the overhead of calling the text encoder and vae decoder.
 
 # Installation
 
@@ -145,7 +145,7 @@ torchrun --nproc_per_node=2 run_flux.py
 
 ## Run HunyuanVideo🚀 with Parallel Inference
 
-NOTE: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
+**NOTE**: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
 It is suggested to run `HunyuanVideo` with GPUs with 80GB memory, or you might experience OOM errors,
 and the performance might be worse due to frequent memory re-allocation.
 
