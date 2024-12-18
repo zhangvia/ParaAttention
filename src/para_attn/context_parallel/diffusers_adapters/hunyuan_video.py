@@ -68,26 +68,26 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
                     hidden_states_len = hidden_states.shape[-2]
                     encoder_hidden_states_len = encoder_hidden_states.shape[-2]
                     total_len = hidden_states_len + encoder_hidden_states_len
-                    new_attention_mask = torch.empty_like(attention_mask)
+                    # new_attention_mask = torch.ones_like(attention_mask)
+                    # for i in range(world_size):
+                    #     new_attention_mask[..., i * total_len : i * total_len + hidden_states_len, :] = attention_mask[
+                    #         ..., i * hidden_states_len : (i + 1) * hidden_states_len, :
+                    #     ]
+                    #     new_attention_mask[
+                    #         ..., i * total_len + hidden_states_len : (i + 1) * total_len, :
+                    #     ] = attention_mask[
+                    #         ...,
+                    #         world_size * hidden_states_len
+                    #         + i * encoder_hidden_states_len : world_size * hidden_states_len
+                    #         + (i + 1) * encoder_hidden_states_len,
+                    #         :,
+                    #     ]
+                    # attention_mask = new_attention_mask
+                    new_attention_mask = torch.ones_like(attention_mask)
                     for i in range(world_size):
-                        new_attention_mask[..., i * total_len : i * total_len + hidden_states_len, :] = attention_mask[
-                            ..., i * hidden_states_len : (i + 1) * hidden_states_len, :
-                        ]
-                        new_attention_mask[
-                            ..., i * total_len + hidden_states_len : (i + 1) * total_len, :
-                        ] = attention_mask[
-                            ...,
-                            world_size * hidden_states_len
-                            + i * encoder_hidden_states_len : world_size * hidden_states_len
-                            + (i + 1) * encoder_hidden_states_len,
-                            :,
-                        ]
-                    attention_mask = new_attention_mask
-                    new_attention_mask = torch.empty_like(attention_mask)
-                    for i in range(world_size):
-                        new_attention_mask[..., :, i * total_len : i * total_len + hidden_states_len] = attention_mask[
-                            ..., :, i * hidden_states_len : (i + 1) * hidden_states_len
-                        ]
+                        # new_attention_mask[..., :, i * total_len : i * total_len + hidden_states_len] = attention_mask[
+                        #     ..., :, i * hidden_states_len : (i + 1) * hidden_states_len
+                        # ]
                         new_attention_mask[
                             ..., :, i * total_len + hidden_states_len : (i + 1) * total_len
                         ] = attention_mask[
@@ -100,14 +100,10 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
                     attention_mask = new_attention_mask
 
                 if image_rotary_emb is not None:
-                    temporal_size = hidden_states.shape[1]
                     freqs_cos, freqs_sin = image_rotary_emb
 
                     def get_rotary_emb_chunk(freqs):
-                        dim_thw = freqs.shape[-1]
-                        freqs = freqs.reshape(temporal_size, -1, dim_thw)
-                        freqs = DP.get_assigned_chunk(freqs, dim=-2, group=seq_mesh)
-                        freqs = freqs.reshape(-1, dim_thw)
+                        freqs = DP.get_assigned_chunk(freqs, dim=0, group=seq_mesh)
                         return freqs
 
                     freqs_cos = get_rotary_emb_chunk(freqs_cos)
