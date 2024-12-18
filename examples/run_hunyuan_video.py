@@ -3,6 +3,9 @@ import torch.distributed as dist
 from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel
 from diffusers.utils import export_to_video
 
+# RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.
+torch.backends.cuda.enable_cudnn_sdp(False)
+
 dist.init_process_group()
 
 model_id = "tencent/HunyuanVideo"

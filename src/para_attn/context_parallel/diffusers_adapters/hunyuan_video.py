@@ -77,9 +77,26 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
             ):
                 world_size = DP.get_world_size(seq_mesh)
                 if attention_mask is not None and world_size > 1:
-                    assert attention_mask.dtype == torch.bool
                     hidden_states_len = hidden_states.shape[-2]
                     encoder_hidden_states_len = encoder_hidden_states.shape[-2]
+
+                    new_attention_mask = []
+                    for i in range(world_size):
+                        new_attention_mask.append(
+                            attention_mask[..., i * hidden_states_len : (i + 1) * hidden_states_len, :]
+                        )
+                        new_attention_mask.append(
+                            attention_mask[
+                                ...,
+                                world_size * hidden_states_len
+                                + i * encoder_hidden_states_len : world_size * hidden_states_len
+                                + (i + 1) * encoder_hidden_states_len,
+                                :,
+                            ]
+                        )
+                    new_attention_mask = torch.cat(new_attention_mask, dim=-2)
+                    attention_mask = new_attention_mask
+
                     new_attention_mask = []
                     for i in range(world_size):
                         new_attention_mask.append(
