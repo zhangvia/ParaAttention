@@ -119,6 +119,8 @@ def get_assigned_chunk(
     if idx is None:
         idx = get_rank(group)
     world_size = get_world_size(group)
+    total_size = tensor.shape[dim]
+    assert total_size % world_size == 0, f"tensor.shape[{dim}]={total_size} is not divisible by world_size={world_size}"
     return tensor.chunk(world_size, dim=dim)[idx]
 
 
