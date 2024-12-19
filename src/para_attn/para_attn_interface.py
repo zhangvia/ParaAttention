@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch.overrides import TorchFunctionMode
 
 import para_attn
+import para_attn.ops as para_attn_ops
 import para_attn.primitives as DP
 
 try:
@@ -16,8 +17,6 @@ except ImportError:
 
 if _templated_ring_attention is not None:
     import torch.distributed.tensor.experimental._attention as torch_ring_attention
-
-para_attn_ops = torch.ops.para_attn
 
 __all__ = [
     "UnifiedAttnMode",

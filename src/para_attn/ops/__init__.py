@@ -22,24 +22,25 @@ if torch.__version__ >= "2.4.0":
     _torch_custom_op_wrapper = torch.library.custom_op
     _torch_register_fake_wrapper = torch.library.register_fake
 else:
-    raise RuntimeError("torch.library.custom_op requires PyTorch version >= 2.4.0")
 
-    # def noop_custom_op_wrapper(name, fn=None, /, *, mutates_args, device_types=None, schema=None):
-    #     def wrap(func):
-    #         return func
-    #     if fn is None:
-    #         return wrap
-    #     return fn
+    def noop_custom_op_wrapper(name, fn=None, /, *, mutates_args, device_types=None, schema=None):
+        def wrap(func):
+            return func
 
-    # def noop_register_fake_wrapper(op, fn=None, /, *, lib=None, _stacklevel=1):
-    #     def wrap(func):
-    #         return func
-    #     if fn is None:
-    #         return wrap
-    #     return fn
+        if fn is None:
+            return wrap
+        return fn
 
-    # _torch_custom_op_wrapper = noop_custom_op_wrapper
-    # _torch_register_fake_wrapper = noop_register_fake_wrapper
+    def noop_register_fake_wrapper(op, fn=None, /, *, lib=None, _stacklevel=1):
+        def wrap(func):
+            return func
+
+        if fn is None:
+            return wrap
+        return fn
+
+    _torch_custom_op_wrapper = noop_custom_op_wrapper
+    _torch_register_fake_wrapper = noop_register_fake_wrapper
 
 
 def flash_attention_forward_with_lse(
