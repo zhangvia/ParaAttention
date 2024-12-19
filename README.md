@@ -146,7 +146,7 @@ torchrun --nproc_per_node=2 run_flux.py
 ## Run HunyuanVideo🚀 with Parallel Inference
 
 **NOTE**: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
-It is suggested to run `HunyuanVideo` with GPUs with 80GB memory, or you might experience OOM errors,
+It is suggested to run `HunyuanVideo` with GPUs with at least 48GB memory, or you might experience OOM errors,
 and the performance might be worse due to frequent memory re-allocation.
 
 ```python
