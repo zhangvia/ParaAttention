@@ -27,8 +27,8 @@ parallelize_pipe(
     ),
 )
 
-torch._inductor.config.reorder_for_compute_comm_overlap = True
-pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+# torch._inductor.config.reorder_for_compute_comm_overlap = True
+# pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 prompt = "A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance."
 video = pipe(
@@ -38,7 +38,7 @@ video = pipe(
     num_frames=49,
     guidance_scale=6,
     # generator=torch.Generator(device=pipe.device).manual_seed(42),
-    output_type="pil" if dist.get_rank() == 0 else "latent",
+    output_type="pil" if dist.get_rank() == 0 else "pt",
 ).frames[0]
 
 if dist.get_rank() == 0:

@@ -148,8 +148,6 @@ def ring_attn_func(
     scale=None,
     mesh=None,
 ):
-    assert attn_mask is None, "attn_mask is not supported in ring_attn_func"
-
     pg = DP.get_group(mesh)
     world_size = DP.get_world_size(pg)
     if world_size <= 1:
@@ -162,6 +160,8 @@ def ring_attn_func(
             is_causal=is_causal,
             scale=scale,
         )
+
+    assert attn_mask is None, "attn_mask is not supported in ring_attn_func when world_size > 1"
 
     return RingAttnFunc.apply(
         query,
@@ -247,7 +247,7 @@ class RingAttnMode(TorchFunctionMode):
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if self.disabled:
+        if RingAttnMode.disabled:
             return func(*args, **kwargs)
 
         if func is torch.nn.functional.scaled_dot_product_attention:
@@ -263,6 +263,7 @@ class RingAttnMode(TorchFunctionMode):
     def __exit__(self, *args):
         super().__exit__(*args)
 
+    @classmethod
     @contextlib.contextmanager
     def disable(cls):
         old_disabled = cls._set_disabled(True)
@@ -290,7 +291,7 @@ class UlyssesAttnMode(TorchFunctionMode):
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if self.disabled:
+        if UlyssesAttnMode.disabled:
             return func(*args, **kwargs)
 
         if func is torch.nn.functional.scaled_dot_product_attention:
@@ -306,6 +307,7 @@ class UlyssesAttnMode(TorchFunctionMode):
     def __exit__(self, *args):
         super().__exit__(*args)
 
+    @classmethod
     @contextlib.contextmanager
     def disable(cls):
         old_disabled = cls._set_disabled(True)
@@ -357,7 +359,7 @@ class UnifiedAttnMode(TorchFunctionMode):
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if self.disabled:
+        if UnifiedAttnMode.disabled:
             return func(*args, **kwargs)
 
         if func is torch.nn.functional.scaled_dot_product_attention:
@@ -373,6 +375,8 @@ class UnifiedAttnMode(TorchFunctionMode):
                         return func(*args, **kwargs)
                     return ring_attn_func(*args, **kwargs, mesh=self._ring_mesh)
             elif parallel_method == "none":
+                if para_attn.config.attention.force_dispatch_to_custom_ops:
+                    return para_attn_ops.attention_forward(*args, **kwargs)
                 return func(*args, **kwargs)
             else:
                 raise ValueError(f"Unknown parallel method: {parallel_method}")
@@ -423,7 +427,7 @@ class InBatchAttnMode(TorchFunctionMode):
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if self.disabled:
+        if InBatchAttnMode.disabled:
             return func(*args, **kwargs)
 
         if func is torch.nn.functional.scaled_dot_product_attention:
@@ -439,6 +443,7 @@ class InBatchAttnMode(TorchFunctionMode):
     def __exit__(self, *args):
         super().__exit__(*args)
 
+    @classmethod
     @contextlib.contextmanager
     def disable(cls):
         old_disabled = cls._set_disabled(True)
