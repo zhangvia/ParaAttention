@@ -5,7 +5,7 @@ supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Rin
 
 This aims to provide:
 
-- [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make `FLUX`, `HunyuanVideo` and `Mochi` inference much faster losslessly.
+- [x] An easy to use interface to speed up model inference with context parallel and `torch.compile`. Make **`FLUX`**, **`HunyuanVideo`** and **`Mochi`** inference much faster losslessly.
 - [x] A unified interface to run context parallel attention (***cfg-ulysses-ring***), as well as keeping the maximum performance while working with `torch.compile`
 - [ ] The fastest accurate attention implemented in Triton, running 50% faster than the originial FA2 implementation on RTX 4090.
 
@@ -34,7 +34,7 @@ torchrun --nproc_per_node=2 examples/run_flux.py
 - [CogVideoX](examples/run_cogvideox.py)
 
 **NOTE**: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
-It is suggested to run `HunyuanVideo` with GPUs with 80GB memory, or you might experience OOM errors,
+It is suggested to run `HunyuanVideo` with GPUs with at least 48GB memory, or you might experience OOM errors,
 and the performance might be worse due to frequent memory re-allocation.
 
 # Performance
@@ -196,10 +196,6 @@ parallelize_pipe(
     mesh=mesh,
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
-
-# Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
-# import para_attn
-# para_attn.config.attention.force_dispatch_to_custom_ops = True
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")

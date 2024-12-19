@@ -1,13 +1,14 @@
 import functools
 import itertools
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from diffusers import DiffusionPipeline, HunyuanVideoTransformer3DModel
+from diffusers.models.modeling_outputs import Transformer2DModelOutput
 
 import para_attn.primitives as DP
 from para_attn.context_parallel import init_context_parallel_mesh
-from para_attn.para_attn_interface import UnifiedAttnMode
+from para_attn.para_attn_interface import SparseKVAttnMode, UnifiedAttnMode
 
 
 def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh=None):
@@ -15,37 +16,105 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
     batch_mesh = mesh["batch"]
     seq_mesh = mesh["ring", "ulysses"]._flatten()
 
-    original_forward = transformer.forward
-
     @functools.wraps(transformer.__class__.forward)
     def new_forward(
         self,
-        *args,
-        **kwargs,
-    ):
-        with UnifiedAttnMode(mesh):
-            output = original_forward(*args, **kwargs)
+        hidden_states: torch.Tensor,
+        timestep: torch.LongTensor,
+        encoder_hidden_states: torch.Tensor,
+        encoder_attention_mask: torch.Tensor,
+        pooled_projections: torch.Tensor,
+        guidance: torch.Tensor = None,
+        return_dict: bool = True,
+    ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
+        batch_size, num_channels, num_frames, height, width = hidden_states.shape
+        p, p_t = self.config.patch_size, self.config.patch_size_t
+        post_patch_num_frames = num_frames // p_t
+        post_patch_height = height // p
+        post_patch_width = width // p
 
-        return output
+        # 1. RoPE
+        image_rotary_emb = self.rope(hidden_states)
+
+        # 2. Conditional embeddings
+        temb = self.time_text_embed(timestep, guidance, pooled_projections)
+        hidden_states = self.x_embedder(hidden_states)
+        encoder_hidden_states = self.context_embedder(encoder_hidden_states, timestep, encoder_attention_mask)
+
+        # 3. Attention mask preparation
+        latent_sequence_length = hidden_states.shape[1]
+        latent_attention_mask = torch.ones(
+            batch_size, 1, latent_sequence_length, device=hidden_states.device, dtype=torch.bool
+        )  # [B, 1, N]
+        attention_mask = torch.cat(
+            [latent_attention_mask, encoder_attention_mask.unsqueeze(1).to(torch.bool)], dim=-1
+        )  # [B, 1, N + M]
+
+        with SparseKVAttnMode(), UnifiedAttnMode(mesh):
+            # 4. Transformer blocks
+            if torch.is_grad_enabled() and self.gradient_checkpointing:
+
+                def create_custom_forward(module, return_dict=None):
+                    def custom_forward(*inputs):
+                        if return_dict is not None:
+                            return module(*inputs, return_dict=return_dict)
+                        else:
+                            return module(*inputs)
+
+                    return custom_forward
+
+                ckpt_kwargs: Dict[str, Any] = {"use_reentrant": False}
+
+                for block in self.transformer_blocks:
+                    hidden_states, encoder_hidden_states = torch.utils.checkpoint.checkpoint(
+                        create_custom_forward(block),
+                        hidden_states,
+                        encoder_hidden_states,
+                        temb,
+                        attention_mask,
+                        image_rotary_emb,
+                        **ckpt_kwargs,
+                    )
+
+                for block in self.single_transformer_blocks:
+                    hidden_states, encoder_hidden_states = torch.utils.checkpoint.checkpoint(
+                        create_custom_forward(block),
+                        hidden_states,
+                        encoder_hidden_states,
+                        temb,
+                        attention_mask,
+                        image_rotary_emb,
+                        **ckpt_kwargs,
+                    )
+
+            else:
+                for block in self.transformer_blocks:
+                    hidden_states, encoder_hidden_states = block(
+                        hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
+                    )
+
+                for block in self.single_transformer_blocks:
+                    hidden_states, encoder_hidden_states = block(
+                        hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
+                    )
+
+        # 5. Output projection
+        hidden_states = self.norm_out(hidden_states, temb)
+        hidden_states = self.proj_out(hidden_states)
+
+        hidden_states = hidden_states.reshape(
+            batch_size, post_patch_num_frames, post_patch_height, post_patch_width, -1, p_t, p, p
+        )
+        hidden_states = hidden_states.permute(0, 4, 1, 5, 2, 6, 3, 7)
+        hidden_states = hidden_states.flatten(6, 7).flatten(4, 5).flatten(2, 3)
+
+        if not return_dict:
+            return (hidden_states,)
+
+        return Transformer2DModelOutput(sample=hidden_states)
 
     new_forward = new_forward.__get__(transformer)
     transformer.forward = new_forward
-
-    original_context_embedder_forward = transformer.context_embedder.forward
-
-    @functools.wraps(transformer.context_embedder.__class__.forward)
-    def new_context_embedder_forward(
-        self,
-        *args,
-        **kwargs,
-    ):
-        with UnifiedAttnMode.disable():
-            output = original_context_embedder_forward(*args, **kwargs)
-
-        return output
-
-    new_context_embedder_forward = new_context_embedder_forward.__get__(transformer.context_embedder)
-    transformer.context_embedder.forward = new_context_embedder_forward
 
     """
     torch._dynamo hit config.cache_size_limit (8)
@@ -76,26 +145,13 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
                 **kwargs,
             ):
                 world_size = DP.get_world_size(seq_mesh)
-                if attention_mask is not None and world_size > 1:
+                if attention_mask is not None:
+                    assert attention_mask.shape[0] == 1, "Only support batch size 1 for now"
+
                     hidden_states_len = hidden_states.shape[-2]
                     encoder_hidden_states_len = encoder_hidden_states.shape[-2]
 
-                    new_attention_mask = []
-                    for i in range(world_size):
-                        new_attention_mask.append(
-                            attention_mask[..., i * hidden_states_len : (i + 1) * hidden_states_len, :]
-                        )
-                        new_attention_mask.append(
-                            attention_mask[
-                                ...,
-                                world_size * hidden_states_len
-                                + i * encoder_hidden_states_len : world_size * hidden_states_len
-                                + (i + 1) * encoder_hidden_states_len,
-                                :,
-                            ]
-                        )
-                    new_attention_mask = torch.cat(new_attention_mask, dim=-2)
-                    attention_mask = new_attention_mask
+                    attention_mask = attention_mask[:1, ..., :1, :]
 
                     new_attention_mask = []
                     for i in range(world_size):

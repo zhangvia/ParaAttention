@@ -212,6 +212,27 @@ def in_batch_attn_func(
     return out
 
 
+def sparse_kv_attn_func(
+    query,
+    key,
+    value,
+    attn_mask=None,
+    dropout_p=0.0,
+    is_causal=False,
+    *,
+    scale=None,
+):
+    return para_attn_ops.attention_forward_sparse_kv(
+        query,
+        key,
+        value,
+        attn_mask=attn_mask,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
+    )
+
+
 def _get_arg(args, kwargs, *field):
     if len(field) == 1:
         if isinstance(field, int):
@@ -432,6 +453,49 @@ class InBatchAttnMode(TorchFunctionMode):
 
         if func is torch.nn.functional.scaled_dot_product_attention:
             return in_batch_attn_func(*args, **kwargs)
+
+        return func(*args, **kwargs)
+
+    @torch.compiler.disable()
+    def __enter__(self):
+        super().__enter__()
+
+    @torch.compiler.disable()
+    def __exit__(self, *args):
+        super().__exit__(*args)
+
+    @classmethod
+    @contextlib.contextmanager
+    def disable(cls):
+        old_disabled = cls._set_disabled(True)
+        try:
+            yield
+        finally:
+            cls._set_disabled(old_disabled)
+
+    @classmethod
+    @torch.compiler.disable()
+    def _set_disabled(cls, value):
+        old_disabled = cls.disabled
+        cls.disabled = value
+        return old_disabled
+
+
+class SparseKVAttnMode(TorchFunctionMode):
+    disabled = False
+
+    @torch.compiler.disable()
+    def __init__(self):
+        super().__init__()
+
+    def __torch_function__(self, func, types, args=(), kwargs=None):
+        kwargs = {} if kwargs is None else kwargs
+
+        if SparseKVAttnMode.disabled:
+            return func(*args, **kwargs)
+
+        if func is torch.nn.functional.scaled_dot_product_attention:
+            return sparse_kv_attn_func(*args, **kwargs)
 
         return func(*args, **kwargs)
 

@@ -219,9 +219,9 @@ class HunyuanVideoPipelineTest(DiffusionPipelineTest):
         )
 
         # Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
-        import para_attn
-
-        para_attn.config.attention.force_dispatch_to_custom_ops = True
+        # import para_attn
+        #
+        # para_attn.config.attention.force_dispatch_to_custom_ops = True
 
         return pipe
 

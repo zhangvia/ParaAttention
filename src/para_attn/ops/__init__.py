@@ -235,3 +235,87 @@ def _(
         is_causal=is_causal,
         scale=scale,
     )
+
+
+def _attention_forward_sparse_kv(
+    query,
+    key,
+    value,
+    attn_mask=None,
+    dropout_p=0.0,
+    is_causal=False,
+    *,
+    scale=None,
+):
+    if attn_mask is None:
+        return aten.scaled_dot_product_attention(
+            query,
+            key,
+            value,
+            attn_mask=attn_mask,
+            dropout_p=dropout_p,
+            is_causal=is_causal,
+            scale=scale,
+        )
+
+    assert attn_mask.dtype == torch.bool, "attn_mask must be a boolean tensor"
+
+    s_kv = key.shape[-2]
+    while attn_mask.ndim > 1:
+        attn_mask = attn_mask[0]
+    indices = torch.arange(s_kv, device=key.device)
+    indices = indices[attn_mask]
+    key = key[..., indices, :]
+    value = value[..., indices, :]
+    return aten.scaled_dot_product_attention(
+        query,
+        key,
+        value,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
+    )
+
+
+@_torch_custom_op_wrapper("para_attn::attention_forward_sparse_kv", mutates_args=(), device_types=("cpu", "cuda"))
+def attention_forward_sparse_kv(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attn_mask: Optional[torch.Tensor] = None,
+    dropout_p: float = 0.0,
+    is_causal: bool = False,
+    *,
+    scale: Optional[float] = None,
+) -> torch.Tensor:
+    return _attention_forward_sparse_kv(
+        query,
+        key,
+        value,
+        attn_mask=attn_mask,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
+    )
+
+
+@_torch_register_fake_wrapper("para_attn::attention_forward_sparse_kv")
+def _(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attn_mask: Optional[torch.Tensor] = None,
+    dropout_p: float = 0.0,
+    is_causal: bool = False,
+    *,
+    scale: Optional[float] = None,
+) -> torch.Tensor:
+    return _attention_forward_sparse_kv(
+        query,
+        key,
+        value,
+        attn_mask=attn_mask,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
+    )

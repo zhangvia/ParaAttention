@@ -45,10 +45,6 @@ parallelize_pipe(
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
-# Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
-# import para_attn
-# para_attn.config.attention.force_dispatch_to_custom_ops = True
-
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
