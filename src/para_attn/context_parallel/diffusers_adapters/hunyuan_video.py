@@ -146,8 +146,6 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
             ):
                 world_size = DP.get_world_size(seq_mesh)
                 if attention_mask is not None:
-                    assert attention_mask.shape[0] == 1, "Only support batch size 1 for now"
-
                     hidden_states_len = hidden_states.shape[-2]
                     encoder_hidden_states_len = encoder_hidden_states.shape[-2]
 
