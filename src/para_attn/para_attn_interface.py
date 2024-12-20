@@ -336,7 +336,10 @@ class CubicAttnFunc(torch.autograd.Function):
             dim=-2,
         )
 
-        grid_t, grid_s = grid
+        if isinstance(grid, int):
+            grid_t, grid_s = grid, None
+        else:
+            grid_t, grid_s = grid
         structure_s = structure_range[1] - structure_range[0]
 
         assert structure_s % grid_s == 0, "structure_s must be divisible by grid_s, got {} and {}".format(
@@ -379,51 +382,53 @@ class CubicAttnFunc(torch.autograd.Function):
                     )
                 )
 
-            structure_output, structure_lse = [], []
-            for q, k, v in zip(
-                query_ts.chunk(grid_t, dim=2), key_ts.chunk(grid_t, dim=2), value_ts.chunk(grid_t, dim=2)
-            ):
-                o, lse = para_attn_ops.attention_forward_with_lse(
-                    q,
-                    k,
-                    v,
-                    attn_mask=attn_mask,
-                    dropout_p=dropout_p,
-                    is_causal=is_causal,
-                    scale=scale,
-                )
-                structure_output.append(o)
-                structure_lse.append(lse)
+            query_cubic = query_ts.unflatten(2, (grid_t, -1))
+            key_cubic = key_ts.unflatten(2, (grid_t, -1))
+            value_cubic = value_ts.unflatten(2, (grid_t, -1))
+            stream_output, stream_lse = para_attn_ops.attention_forward_with_lse(
+                query_cubic.flatten(1, 2),
+                key_cubic.flatten(1, 2),
+                value_cubic.flatten(1, 2),
+                attn_mask=attn_mask,
+                dropout_p=dropout_p,
+                is_causal=is_causal,
+                scale=scale,
+            )
+            stream_output = stream_output.unflatten(1, (-1, grid_t))
+            stream_lse = stream_lse.unflatten(1, (-1, grid_t))
+            stream_output = stream_output.flatten(2, 3)
+            stream_lse = stream_lse.flatten(2, 3)
+            sdpa_merger.step(stream_output, stream_lse)
+            del stream_output, stream_lse
 
-            structure_output = torch.cat(structure_output, dim=2)
-            structure_lse = torch.cat(structure_lse, dim=2)
+            if grid_s is not None:
+                structure_output, structure_lse = [], []
+                for q, k, v in zip(
+                    query_cubic.chunk(grid_s, dim=3),
+                    key_cubic.chunk(grid_s, dim=3),
+                    value_cubic.chunk(grid_s, dim=3),
+                ):
+                    o, lse = para_attn_ops.attention_forward_with_lse(
+                        q.flatten(2, 3),
+                        k.flatten(2, 3),
+                        v.flatten(2, 3),
+                        attn_mask=attn_mask,
+                        dropout_p=dropout_p,
+                        is_causal=is_causal,
+                        scale=scale,
+                    )
+                    structure_output.append(o.unflatten(2, (grid_t, -1)))
+                    structure_lse.append(lse.unflatten(2, (grid_t, -1)))
+                    del o, lse
 
-            sdpa_merger.step(structure_output, structure_lse)
+                structure_output = torch.cat(structure_output, dim=3)
+                structure_lse = torch.cat(structure_lse, dim=3)
+                structure_output = structure_output.flatten(2, 3)
+                structure_lse = structure_lse.flatten(2, 3)
+                sdpa_merger.step(structure_output, structure_lse)
+                del structure_output, structure_lse
 
-            structure_output, structure_lse = [], []
-            for q, k, v in zip(
-                query_ts.unflatten(2, (grid_t, -1)).chunk(grid_s, dim=3),
-                key_ts.unflatten(2, (grid_t, -1)).chunk(grid_s, dim=3),
-                value_ts.unflatten(2, (grid_t, -1)).chunk(grid_s, dim=3),
-            ):
-                o, lse = para_attn_ops.attention_forward_with_lse(
-                    q.flatten(2, 3),
-                    k.flatten(2, 3),
-                    v.flatten(2, 3),
-                    attn_mask=attn_mask,
-                    dropout_p=dropout_p,
-                    is_causal=is_causal,
-                    scale=scale,
-                )
-                structure_output.append(o.unflatten(2, (grid_t, -1)))
-                structure_lse.append(lse.unflatten(2, (grid_t, -1)))
-
-            structure_output = torch.cat(structure_output, dim=3)
-            structure_lse = torch.cat(structure_lse, dim=3)
-            structure_output = structure_output.flatten(2, 3)
-            structure_lse = structure_lse.flatten(2, 3)
-
-            sdpa_merger.step(structure_output, structure_lse)
+            del query_cubic, key_cubic, value_cubic
 
             if structure_range[1] < s_kv:
                 sdpa_merger.step(
@@ -439,6 +444,7 @@ class CubicAttnFunc(torch.autograd.Function):
                 )
 
             output.append(sdpa_merger.results()[0])
+            del sdpa_merger
 
         if structure_range[1] < s_q:
             output.append(
