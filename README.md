@@ -25,13 +25,13 @@ For example, to run FLUX with 2 GPUs:
 
 ```bash
 # Use --nproc_per_node to specify the number of GPUs
-torchrun --nproc_per_node=2 examples/run_flux.py
+torchrun --nproc_per_node=2 parallel_examples/run_flux.py
 ```
 
-- [FLUX](examples/run_flux.py)
-- [HunyuanVideo🚀](examples/run_hunyuan_video.py)
-- [Mochi](examples/run_mochi.py)
-- [CogVideoX](examples/run_cogvideox.py)
+- [FLUX](parallel_examples/run_flux.py)
+- [HunyuanVideo🚀](parallel_examples/run_hunyuan_video.py)
+- [Mochi](parallel_examples/run_mochi.py)
+- [CogVideoX](parallel_examples/run_cogvideox.py)
 
 **NOTE**: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
 It is suggested to run `HunyuanVideo` with GPUs with at least 48GB memory, or you might experience OOM errors,
@@ -302,9 +302,9 @@ vae = parallelize_vae(vae)
 
 | Model | Command |
 | - | - |
-| `FLUX` | `torchrun --nproc_per_node=2 examples/run_flux.py` |
-| `Mochi` | `torchrun --nproc_per_node=2 examples/run_mochi.py` |
-| `CogVideoX` | `torchrun --nproc_per_node=2 examples/run_cogvideox.py` |
+| `FLUX` | `torchrun --nproc_per_node=2 parallel_examples/run_flux.py` |
+| `Mochi` | `torchrun --nproc_per_node=2 parallel_examples/run_mochi.py` |
+| `CogVideoX` | `torchrun --nproc_per_node=2 parallel_examples/run_cogvideox.py` |
 
 ## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
 

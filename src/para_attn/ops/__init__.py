@@ -260,6 +260,7 @@ def _attention_forward_sparse_kv(
         )
 
     assert attn_mask.dtype == torch.bool, "attn_mask must be a boolean tensor"
+    assert not is_causal, "is_causal is not supported with sparse kv"
 
     s_kv = key.shape[-2]
     while attn_mask.ndim > 1:

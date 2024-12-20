@@ -17,15 +17,21 @@ except ImportError:
 
 if _templated_ring_attention is not None:
     import torch.distributed.tensor.experimental._attention as torch_ring_attention
+else:
+    import torch.distributed.tensor as torch_ring_attention
 
 __all__ = [
     "UnifiedAttnMode",
     "RingAttnMode",
     "UlyssesAttnMode",
     "InBatchAttnMode",
+    "SparseKVAttnMode",
+    "CubicAttnMode",
     "ring_attn_func",
     "ulysses_attn_func",
     "in_batch_attn_func",
+    "sparse_kv_attn_func",
+    "cubic_attn_func",
 ]
 
 
@@ -211,6 +217,34 @@ def in_batch_attn_func(
     return out
 
 
+class SparseKVAttnFunc(torch.autograd.Function):
+    @staticmethod
+    def forward(
+        ctx,
+        query,
+        key,
+        value,
+        attn_mask,
+        dropout_p,
+        is_causal,
+        scale,
+    ):
+        out = para_attn_ops.attention_forward_sparse_kv(
+            query,
+            key,
+            value,
+            attn_mask=attn_mask,
+            dropout_p=dropout_p,
+            is_causal=is_causal,
+            scale=scale,
+        )
+        return out
+
+    @staticmethod
+    def backward(ctx, dout, *args):
+        raise NotImplementedError("Backward pass for SparseKVAttnFunc is not implemented")
+
+
 def sparse_kv_attn_func(
     query,
     key,
@@ -221,14 +255,233 @@ def sparse_kv_attn_func(
     *,
     scale=None,
 ):
-    return para_attn_ops.attention_forward_sparse_kv(
+    return SparseKVAttnFunc.apply(
         query,
         key,
         value,
-        attn_mask=attn_mask,
-        dropout_p=dropout_p,
-        is_causal=is_causal,
-        scale=scale,
+        attn_mask,
+        dropout_p,
+        is_causal,
+        scale,
+    )
+
+
+class CubicAttnFunc(torch.autograd.Function):
+    @staticmethod
+    def forward(
+        ctx,
+        query,
+        key,
+        value,
+        attn_mask,
+        dropout_p,
+        is_causal,
+        scale,
+        grid,
+        structure_range,
+    ):
+        if grid is None:
+            return F.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=attn_mask,
+                dropout_p=dropout_p,
+                is_causal=is_causal,
+                scale=scale,
+            )
+
+        assert torch_ring_attention is not None, "CubicAttnFunc requires a newer version of PyTorch"
+
+        assert query.ndim == 4, "query must have 4 dimensions, got {}".format(query.ndim)
+        assert key.ndim == 4, "key must have 4 dimensions, got {}".format(key.ndim)
+        assert value.ndim == 4, "value must have 4 dimensions, got {}".format(value.ndim)
+
+        assert not is_causal, "is_causal is not supported in CubicAttnFunc"
+
+        assert len(grid) == 2, "grid must have 2 dimensions, got {}".format(len(grid))
+
+        b, h, s_q, d_qk = query.shape
+        _, _, s_kv, d_v = value.shape
+
+        if structure_range is None:
+            structure_range = (0, min(s_q, s_kv))
+
+        assert structure_range[0] < structure_range[1] and structure_range[1] <= min(
+            s_q, s_kv
+        ), "structure_range must be valid, got {}, which is not in [0, {}]".format(structure_range, min(s_q, s_kv))
+
+        query_left, query_ts, query_right = query.split(
+            [
+                structure_range[0],
+                structure_range[1] - structure_range[0],
+                s_q - structure_range[1],
+            ],
+            dim=-2,
+        )
+        key_left, key_ts, key_right = key.split(
+            [
+                structure_range[0],
+                structure_range[1] - structure_range[0],
+                s_kv - structure_range[1],
+            ],
+            dim=-2,
+        )
+        value_left, value_ts, value_right = value.split(
+            [
+                structure_range[0],
+                structure_range[1] - structure_range[0],
+                s_kv - structure_range[1],
+            ],
+            dim=-2,
+        )
+
+        grid_t, grid_s = grid
+        structure_s = structure_range[1] - structure_range[0]
+
+        assert structure_s % grid_s == 0, "structure_s must be divisible by grid_s, got {} and {}".format(
+            structure_s, grid_s
+        )
+        assert structure_s % grid_t == 0, "structure_s must be divisible by grid_t, got {} and {}".format(
+            structure_s, grid_t
+        )
+
+        output = []
+
+        if structure_range[0] > 0:
+            output.append(
+                F.scaled_dot_product_attention(
+                    query_left,
+                    key,
+                    value,
+                    attn_mask=attn_mask,
+                    dropout_p=dropout_p,
+                    is_causal=is_causal,
+                    scale=scale,
+                )
+            )
+
+        if structure_range[0] < structure_range[1]:
+            sdpa_merger = torch_ring_attention._SDPAMerger(
+                not para_attn.config.attention.allow_reduced_precision_compute
+            )
+
+            if structure_range[0] > 0:
+                sdpa_merger.step(
+                    *para_attn_ops.attention_forward_with_lse(
+                        query_ts,
+                        key_left,
+                        value_left,
+                        attn_mask=attn_mask,
+                        dropout_p=dropout_p,
+                        is_causal=is_causal,
+                        scale=scale,
+                    )
+                )
+
+            structure_output, structure_lse = [], []
+            for q, k, v in zip(
+                query_ts.chunk(grid_t, dim=2), key_ts.chunk(grid_t, dim=2), value_ts.chunk(grid_t, dim=2)
+            ):
+                o, lse = para_attn_ops.attention_forward_with_lse(
+                    q,
+                    k,
+                    v,
+                    attn_mask=attn_mask,
+                    dropout_p=dropout_p,
+                    is_causal=is_causal,
+                    scale=scale,
+                )
+                structure_output.append(o)
+                structure_lse.append(lse)
+
+            structure_output = torch.cat(structure_output, dim=2)
+            structure_lse = torch.cat(structure_lse, dim=2)
+
+            sdpa_merger.step(structure_output, structure_lse)
+
+            structure_output, structure_lse = [], []
+            for q, k, v in zip(
+                query_ts.unflatten(2, (grid_t, -1)).chunk(grid_s, dim=3),
+                key_ts.unflatten(2, (grid_t, -1)).chunk(grid_s, dim=3),
+                value_ts.unflatten(2, (grid_t, -1)).chunk(grid_s, dim=3),
+            ):
+                o, lse = para_attn_ops.attention_forward_with_lse(
+                    q.flatten(2, 3),
+                    k.flatten(2, 3),
+                    v.flatten(2, 3),
+                    attn_mask=attn_mask,
+                    dropout_p=dropout_p,
+                    is_causal=is_causal,
+                    scale=scale,
+                )
+                structure_output.append(o.unflatten(2, (grid_t, -1)))
+                structure_lse.append(lse.unflatten(2, (grid_t, -1)))
+
+            structure_output = torch.cat(structure_output, dim=3)
+            structure_lse = torch.cat(structure_lse, dim=3)
+            structure_output = structure_output.flatten(2, 3)
+            structure_lse = structure_lse.flatten(2, 3)
+
+            sdpa_merger.step(structure_output, structure_lse)
+
+            if structure_range[1] < s_kv:
+                sdpa_merger.step(
+                    *para_attn_ops.attention_forward_with_lse(
+                        query_ts,
+                        key_right,
+                        value_right,
+                        attn_mask=attn_mask,
+                        dropout_p=dropout_p,
+                        is_causal=is_causal,
+                        scale=scale,
+                    )
+                )
+
+            output.append(sdpa_merger.results()[0])
+
+        if structure_range[1] < s_q:
+            output.append(
+                F.scaled_dot_product_attention(
+                    query_right,
+                    key,
+                    value,
+                    attn_mask=attn_mask,
+                    dropout_p=dropout_p,
+                    is_causal=is_causal,
+                    scale=scale,
+                )
+            )
+
+        return torch.cat(output, dim=-2)
+
+    @staticmethod
+    def backward(ctx, dout, *args):
+        raise NotImplementedError("Backward pass for CubicAttnFunc is not implemented")
+
+
+def cubic_attn_func(
+    query,
+    key,
+    value,
+    attn_mask=None,
+    dropout_p=0.0,
+    is_causal=False,
+    *,
+    scale=None,
+    grid=None,
+    structure_range=None,
+):
+    return CubicAttnFunc.apply(
+        query,
+        key,
+        value,
+        attn_mask,
+        dropout_p,
+        is_causal,
+        scale,
+        grid,
+        structure_range,
     )
 
 
@@ -495,6 +748,51 @@ class SparseKVAttnMode(TorchFunctionMode):
 
         if func is torch.nn.functional.scaled_dot_product_attention:
             return sparse_kv_attn_func(*args, **kwargs)
+
+        return func(*args, **kwargs)
+
+    @torch.compiler.disable()
+    def __enter__(self):
+        super().__enter__()
+
+    @torch.compiler.disable()
+    def __exit__(self, *args):
+        super().__exit__(*args)
+
+    @classmethod
+    @contextlib.contextmanager
+    def disable(cls):
+        old_disabled = cls._set_disabled(True)
+        try:
+            yield
+        finally:
+            cls._set_disabled(old_disabled)
+
+    @classmethod
+    @torch.compiler.disable()
+    def _set_disabled(cls, value):
+        old_disabled = cls.disabled
+        cls.disabled = value
+        return old_disabled
+
+
+class CubicAttnMode(TorchFunctionMode):
+    disabled = False
+
+    @torch.compiler.disable()
+    def __init__(self, *, grid=None, structure_range=None):
+        super().__init__()
+        self._grid = grid
+        self._structure_range = structure_range
+
+    def __torch_function__(self, func, types, args=(), kwargs=None):
+        kwargs = {} if kwargs is None else kwargs
+
+        if CubicAttnMode.disabled:
+            return func(*args, **kwargs)
+
+        if func is torch.nn.functional.scaled_dot_product_attention:
+            return cubic_attn_func(*args, **kwargs, grid=self._grid, structure_range=self._structure_range)
 
         return func(*args, **kwargs)
 
