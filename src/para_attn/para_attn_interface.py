@@ -342,12 +342,13 @@ class CubicAttnFunc(torch.autograd.Function):
             grid_t, grid_s = grid
         structure_s = structure_range[1] - structure_range[0]
 
-        assert structure_s % grid_s == 0, "structure_s must be divisible by grid_s, got {} and {}".format(
-            structure_s, grid_s
-        )
         assert structure_s % grid_t == 0, "structure_s must be divisible by grid_t, got {} and {}".format(
             structure_s, grid_t
         )
+        if grid_s is not None:
+            assert (
+                structure_s // grid_t % grid_s == 0
+            ), "structure_s // grid_t must be divisible by grid_s, got {} and {}".format(structure_s // grid_t, grid_s)
 
         output = []
 
