@@ -6,7 +6,9 @@ from diffusers import DiffusionPipeline, MochiTransformer3DModel
 from para_attn.para_attn_interface import StructSparseAttnMode
 
 
-def sparsify_transformer(transformer: MochiTransformer3DModel, *, num_temporal_chunks=None, num_spatial_chunks=None):
+def sparsify_transformer(
+    transformer: MochiTransformer3DModel,
+):
     original_forward = transformer.forward
 
     @functools.wraps(transformer.__class__.forward)
@@ -20,16 +22,18 @@ def sparsify_transformer(transformer: MochiTransformer3DModel, *, num_temporal_c
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
         p = self.config.patch_size
 
+        post_patch_num_frames = num_frames
         post_patch_height = height // p
         post_patch_width = width // p
 
-        sparse_mask = torch.eye(num_frames, dtype=torch.bool)
-        sparse_mask[..., 0] = True
+        sparse_mask = torch.eye(post_patch_num_frames, dtype=torch.bool)
+        sparse_mask[1:] = torch.eye(post_patch_num_frames, dtype=torch.bool)[:-1]
+        sparse_mask[:, 1:] = torch.eye(post_patch_num_frames, dtype=torch.bool)[:, :-1]
         with StructSparseAttnMode(
             sparse_mask=sparse_mask,
             sparse_range_query=(
                 encoder_hidden_states.shape[-2],
-                encoder_hidden_states.shape[-2] + num_frames * post_patch_height * post_patch_width,
+                encoder_hidden_states.shape[-2] + post_patch_num_frames * post_patch_height * post_patch_width,
             ),
         ):
             output = original_forward(
@@ -68,11 +72,12 @@ def sparsify_transformer(transformer: MochiTransformer3DModel, *, num_temporal_c
 
 
 def sparsify_pipe(
-    pipe: DiffusionPipeline, *, shallow_patch: bool = False, num_temporal_chunks=None, num_spatial_chunks=None
+    pipe: DiffusionPipeline,
+    *,
+    shallow_patch: bool = False,
+    **kwargs,
 ):
     if not shallow_patch:
-        sparsify_transformer(
-            pipe.transformer, num_temporal_chunks=num_temporal_chunks, num_spatial_chunks=num_spatial_chunks
-        )
+        sparsify_transformer(pipe.transformer, **kwargs)
 
     return pipe

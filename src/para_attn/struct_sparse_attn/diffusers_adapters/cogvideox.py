@@ -7,7 +7,7 @@ from para_attn.para_attn_interface import StructSparseAttnMode
 
 
 def sparsify_transformer(
-    transformer: CogVideoXTransformer3DModel, *, num_temporal_chunks=None, num_spatial_chunks=None
+    transformer: CogVideoXTransformer3DModel,
 ):
     original_forward = transformer.forward
 
@@ -31,7 +31,8 @@ def sparsify_transformer(
         post_patch_width = width // p
 
         sparse_mask = torch.eye(post_patch_num_frames, dtype=torch.bool)
-        sparse_mask[..., 0] = True
+        sparse_mask[1:] = torch.eye(post_patch_num_frames, dtype=torch.bool)[:-1]
+        sparse_mask[:, 1:] = torch.eye(post_patch_num_frames, dtype=torch.bool)[:, :-1]
         with StructSparseAttnMode(
             sparse_mask=sparse_mask,
             sparse_range_query=(
@@ -55,11 +56,12 @@ def sparsify_transformer(
 
 
 def sparsify_pipe(
-    pipe: DiffusionPipeline, *, shallow_patch: bool = False, num_temporal_chunks=None, num_spatial_chunks=None
+    pipe: DiffusionPipeline,
+    *,
+    shallow_patch: bool = False,
+    **kwargs,
 ):
     if not shallow_patch:
-        sparsify_transformer(
-            pipe.transformer, num_temporal_chunks=num_temporal_chunks, num_spatial_chunks=num_spatial_chunks
-        )
+        sparsify_transformer(pipe.transformer, **kwargs)
 
     return pipe
