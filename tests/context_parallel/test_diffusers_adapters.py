@@ -132,7 +132,7 @@ class MochiPipelineTest(DiffusionPipelineTest):
 
     @pytest.mark.skipif("not torch.cuda.is_available()")
     @with_comms
-    @parametrize("dtype", [torch.float16])
+    @parametrize("dtype", [torch.bfloat16])
     @parametrize("device", ["cuda"])
     @parametrize(
         "parallelize,compile,use_batch,use_ring",

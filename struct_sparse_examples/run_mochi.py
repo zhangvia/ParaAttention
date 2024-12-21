@@ -4,7 +4,7 @@ from diffusers.utils import export_to_video
 
 pipe = MochiPipeline.from_pretrained(
     "genmo/mochi-1-preview",
-    torch_dtype=torch.float16,
+    torch_dtype=torch.bfloat16,
 ).to("cuda")
 
 # Enable memory savings
