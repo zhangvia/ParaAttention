@@ -3,10 +3,10 @@ import functools
 import torch
 from diffusers import DiffusionPipeline, MochiTransformer3DModel
 
-from para_attn.para_attn_interface import CubicAttnMode
+from para_attn.para_attn_interface import StructSparseAttnMode
 
 
-def cubify_transformer(transformer: MochiTransformer3DModel, *, num_temporal_chunks=None, num_spatial_chunks=None):
+def sparsify_transformer(transformer: MochiTransformer3DModel, *, num_temporal_chunks=None, num_spatial_chunks=None):
     original_forward = transformer.forward
 
     @functools.wraps(transformer.__class__.forward)
@@ -23,12 +23,14 @@ def cubify_transformer(transformer: MochiTransformer3DModel, *, num_temporal_chu
         post_patch_height = height // p
         post_patch_width = width // p
 
-        with CubicAttnMode(
-            grid=(
-                num_frames if num_temporal_chunks is None else num_temporal_chunks,
-                post_patch_height if num_spatial_chunks is None else num_spatial_chunks,
+        sparse_mask = torch.eye(num_frames, dtype=torch.bool)
+        sparse_mask[..., 0] = True
+        with StructSparseAttnMode(
+            sparse_mask=sparse_mask,
+            sparse_range_query=(
+                encoder_hidden_states.shape[-2],
+                encoder_hidden_states.shape[-2] + num_frames * post_patch_height * post_patch_width,
             ),
-            structure_range=(0, num_frames * post_patch_height * post_patch_width),
         ):
             output = original_forward(
                 hidden_states,
@@ -53,7 +55,7 @@ def cubify_transformer(transformer: MochiTransformer3DModel, *, num_temporal_chu
         *args,
         **kwargs,
     ):
-        with CubicAttnMode.disable():
+        with StructSparseAttnMode.disable():
             output = original_time_embed_forward(
                 timestep, encoder_hidden_states, encoder_attention_mask, *args, **kwargs
             )
@@ -65,11 +67,11 @@ def cubify_transformer(transformer: MochiTransformer3DModel, *, num_temporal_chu
     return transformer
 
 
-def cubify_pipe(
+def sparsify_pipe(
     pipe: DiffusionPipeline, *, shallow_patch: bool = False, num_temporal_chunks=None, num_spatial_chunks=None
 ):
     if not shallow_patch:
-        cubify_transformer(
+        sparsify_transformer(
             pipe.transformer, num_temporal_chunks=num_temporal_chunks, num_spatial_chunks=num_spatial_chunks
         )
 

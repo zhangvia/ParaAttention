@@ -12,9 +12,9 @@ pipe = CogVideoXPipeline.from_pretrained(
 pipe.vae.enable_slicing()
 pipe.vae.enable_tiling()
 
-from para_attn.cubic_attn.diffusers_adapters import cubify_pipe
+from para_attn.struct_sparse_attn.diffusers_adapters import sparsify_pipe
 
-cubify_pipe(pipe)
+sparsify_pipe(pipe)
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")

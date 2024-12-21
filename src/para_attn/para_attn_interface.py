@@ -26,12 +26,12 @@ __all__ = [
     "UlyssesAttnMode",
     "InBatchAttnMode",
     "SparseKVAttnMode",
-    "CubicAttnMode",
+    "StructSparseAttnMode",
     "ring_attn_func",
     "ulysses_attn_func",
     "in_batch_attn_func",
     "sparse_kv_attn_func",
-    "cubic_attn_func",
+    "struct_sparse_attn_func",
 ]
 
 
@@ -266,7 +266,7 @@ def sparse_kv_attn_func(
     )
 
 
-class CubicAttnFunc(torch.autograd.Function):
+class StructuredSparseAttnFunc(torch.autograd.Function):
     @staticmethod
     def forward(
         ctx,
@@ -277,10 +277,11 @@ class CubicAttnFunc(torch.autograd.Function):
         dropout_p,
         is_causal,
         scale,
-        grid,
-        structure_range,
+        sparse_mask,
+        sparse_range_query,
+        sparse_range_key_value,
     ):
-        if grid is None:
+        if sparse_mask is None:
             return F.scaled_dot_product_attention(
                 query,
                 key,
@@ -299,60 +300,58 @@ class CubicAttnFunc(torch.autograd.Function):
 
         assert not is_causal, "is_causal is not supported in CubicAttnFunc"
 
-        assert len(grid) == 2, "grid must have 2 dimensions, got {}".format(len(grid))
+        assert sparse_mask.ndim == 2, "sparse_mask must have 2 dimensions, got {}".format(sparse_mask.ndim)
 
         b, h, s_q, d_qk = query.shape
         _, _, s_kv, d_v = value.shape
 
-        if structure_range is None:
-            structure_range = (0, min(s_q, s_kv))
+        if sparse_range_key_value is None:
+            sparse_range_key_value = sparse_range_query
 
-        assert structure_range[0] < structure_range[1] and structure_range[1] <= min(
-            s_q, s_kv
-        ), "structure_range must be valid, got {}, which is not in [0, {}]".format(structure_range, min(s_q, s_kv))
+        assert (
+            0 <= sparse_range_query[0] <= sparse_range_query[1] <= s_q
+        ), f"sparse_range_query must be in [0, {s_q}], got {sparse_range_query}"
+        assert (
+            0 <= sparse_range_key_value[0] <= sparse_range_key_value[1] <= s_kv
+        ), f"sparse_range_key_value must be in [0, {s_kv}], got {sparse_range_key_value}"
 
-        query_left, query_ts, query_right = query.split(
+        assert (sparse_range_query[1] - sparse_range_query[0]) % sparse_mask.shape[
+            0
+        ] == 0, f"sparse_mask must divide the query dimension, got {sparse_mask.shape[0]} and {sparse_range_query}"
+        assert (sparse_range_key_value[1] - sparse_range_key_value[0]) % sparse_mask.shape[
+            1
+        ] == 0, (
+            f"sparse_mask must divide the key/value dimension, got {sparse_mask.shape[1]} and {sparse_range_key_value}"
+        )
+
+        query_left, query_sparse, query_right = query.split(
             [
-                structure_range[0],
-                structure_range[1] - structure_range[0],
-                s_q - structure_range[1],
+                sparse_range_query[0],
+                sparse_range_query[1] - sparse_range_query[0],
+                s_q - sparse_range_query[1],
             ],
             dim=-2,
         )
-        key_left, key_ts, key_right = key.split(
+        key_left, key_sparse, key_right = key.split(
             [
-                structure_range[0],
-                structure_range[1] - structure_range[0],
-                s_kv - structure_range[1],
+                sparse_range_key_value[0],
+                sparse_range_key_value[1] - sparse_range_key_value[0],
+                s_kv - sparse_range_key_value[1],
             ],
             dim=-2,
         )
-        value_left, value_ts, value_right = value.split(
+        value_left, value_sparse, value_right = value.split(
             [
-                structure_range[0],
-                structure_range[1] - structure_range[0],
-                s_kv - structure_range[1],
+                sparse_range_key_value[0],
+                sparse_range_key_value[1] - sparse_range_key_value[0],
+                s_kv - sparse_range_key_value[1],
             ],
             dim=-2,
         )
-
-        if isinstance(grid, int):
-            grid_t, grid_s = grid, None
-        else:
-            grid_t, grid_s = grid
-        structure_s = structure_range[1] - structure_range[0]
-
-        assert structure_s % grid_t == 0, "structure_s must be divisible by grid_t, got {} and {}".format(
-            structure_s, grid_t
-        )
-        if grid_s is not None:
-            assert (
-                structure_s // grid_t % grid_s == 0
-            ), "structure_s // grid_t must be divisible by grid_s, got {} and {}".format(structure_s // grid_t, grid_s)
 
         output = []
 
-        if structure_range[0] > 0:
+        if query_left.numel() > 0:
             output.append(
                 F.scaled_dot_product_attention(
                     query_left,
@@ -365,15 +364,15 @@ class CubicAttnFunc(torch.autograd.Function):
                 )
             )
 
-        if structure_range[0] < structure_range[1]:
+        if query_sparse.numel() > 0:
             sdpa_merger = torch_ring_attention._SDPAMerger(
                 not para_attn.config.attention.allow_reduced_precision_compute
             )
 
-            if structure_range[0] > 0:
+            if key_left.numel() > 0:
                 sdpa_merger.step(
                     *para_attn_ops.attention_forward_with_lse(
-                        query_ts,
+                        query_sparse,
                         key_left,
                         value_left,
                         attn_mask=attn_mask,
@@ -383,58 +382,44 @@ class CubicAttnFunc(torch.autograd.Function):
                     )
                 )
 
-            query_cubic = query_ts.unflatten(2, (grid_t, -1))
-            key_cubic = key_ts.unflatten(2, (grid_t, -1))
-            value_cubic = value_ts.unflatten(2, (grid_t, -1))
-            stream_output, stream_lse = para_attn_ops.attention_forward_with_lse(
-                query_cubic.flatten(1, 2),
-                key_cubic.flatten(1, 2),
-                value_cubic.flatten(1, 2),
-                attn_mask=attn_mask,
-                dropout_p=dropout_p,
-                is_causal=is_causal,
-                scale=scale,
-            )
-            stream_output = stream_output.unflatten(1, (-1, grid_t))
-            stream_lse = stream_lse.unflatten(1, (-1, grid_t))
-            stream_output = stream_output.flatten(2, 3)
-            stream_lse = stream_lse.flatten(2, 3)
-            sdpa_merger.step(stream_output, stream_lse)
-            del stream_output, stream_lse
-
-            if grid_s is not None:
-                structure_output, structure_lse = [], []
-                for q, k, v in zip(
-                    query_cubic.chunk(grid_s, dim=3),
-                    key_cubic.chunk(grid_s, dim=3),
-                    value_cubic.chunk(grid_s, dim=3),
+            sparse_output, sparse_lse = [], []
+            for mask_row, query_chunk in zip(sparse_mask, query_sparse.chunk(sparse_mask.shape[0], dim=2)):
+                sub_sdpa_merger = torch_ring_attention._SDPAMerger(
+                    not para_attn.config.attention.allow_reduced_precision_compute
+                )
+                for cond, key_chunk, value_chunk in zip(
+                    mask_row,
+                    key_sparse.chunk(sparse_mask.shape[1], dim=2),
+                    value_sparse.chunk(sparse_mask.shape[1], dim=2),
                 ):
-                    o, lse = para_attn_ops.attention_forward_with_lse(
-                        q.flatten(2, 3),
-                        k.flatten(2, 3),
-                        v.flatten(2, 3),
-                        attn_mask=attn_mask,
-                        dropout_p=dropout_p,
-                        is_causal=is_causal,
-                        scale=scale,
-                    )
-                    structure_output.append(o.unflatten(2, (grid_t, -1)))
-                    structure_lse.append(lse.unflatten(2, (grid_t, -1)))
-                    del o, lse
+                    if cond:
+                        sub_sdpa_merger.step(
+                            *para_attn_ops.attention_forward_with_lse(
+                                query_chunk,
+                                key_chunk,
+                                value_chunk,
+                                attn_mask=attn_mask,
+                                dropout_p=dropout_p,
+                                is_causal=is_causal,
+                                scale=scale,
+                            )
+                        )
+                row_output, row_lse = sub_sdpa_merger.results()
+                sparse_output.append(row_output)
+                sparse_lse.append(row_lse)
+                del sub_sdpa_merger
+                del row_output
+                del row_lse
+            sparse_output = torch.cat(sparse_output, dim=2)
+            sparse_lse = torch.cat(sparse_lse, dim=2)
+            sdpa_merger.step(sparse_output, sparse_lse)
+            del sparse_output
+            del sparse_lse
 
-                structure_output = torch.cat(structure_output, dim=3)
-                structure_lse = torch.cat(structure_lse, dim=3)
-                structure_output = structure_output.flatten(2, 3)
-                structure_lse = structure_lse.flatten(2, 3)
-                sdpa_merger.step(structure_output, structure_lse)
-                del structure_output, structure_lse
-
-            del query_cubic, key_cubic, value_cubic
-
-            if structure_range[1] < s_kv:
+            if key_right.numel() > 0:
                 sdpa_merger.step(
                     *para_attn_ops.attention_forward_with_lse(
-                        query_ts,
+                        query_sparse,
                         key_right,
                         value_right,
                         attn_mask=attn_mask,
@@ -447,7 +432,7 @@ class CubicAttnFunc(torch.autograd.Function):
             output.append(sdpa_merger.results()[0])
             del sdpa_merger
 
-        if structure_range[1] < s_q:
+        if query_right.numel() > 0:
             output.append(
                 F.scaled_dot_product_attention(
                     query_right,
@@ -460,14 +445,14 @@ class CubicAttnFunc(torch.autograd.Function):
                 )
             )
 
-        return torch.cat(output, dim=-2)
+        return torch.cat(output, dim=2)
 
     @staticmethod
     def backward(ctx, dout, *args):
-        raise NotImplementedError("Backward pass for CubicAttnFunc is not implemented")
+        raise NotImplementedError("Backward pass for StructuredSparseAttnFunc is not implemented")
 
 
-def cubic_attn_func(
+def struct_sparse_attn_func(
     query,
     key,
     value,
@@ -476,10 +461,11 @@ def cubic_attn_func(
     is_causal=False,
     *,
     scale=None,
-    grid=None,
-    structure_range=None,
+    sparse_mask=None,
+    sparse_range_query=None,
+    sparse_range_key_value=None,
 ):
-    return CubicAttnFunc.apply(
+    return StructuredSparseAttnFunc.apply(
         query,
         key,
         value,
@@ -487,8 +473,9 @@ def cubic_attn_func(
         dropout_p,
         is_causal,
         scale,
-        grid,
-        structure_range,
+        sparse_mask,
+        sparse_range_query,
+        sparse_range_key_value,
     )
 
 
@@ -783,23 +770,30 @@ class SparseKVAttnMode(TorchFunctionMode):
         return old_disabled
 
 
-class CubicAttnMode(TorchFunctionMode):
+class StructSparseAttnMode(TorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable()
-    def __init__(self, *, grid=None, structure_range=None):
+    def __init__(self, *, sparse_mask=None, sparse_range_query=None, sparse_range_key_value=None):
         super().__init__()
-        self._grid = grid
-        self._structure_range = structure_range
+        self._sparse_mask = sparse_mask
+        self._sparse_range_query = sparse_range_query
+        self._sparse_range_key_value = sparse_range_key_value
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
-        if CubicAttnMode.disabled:
+        if StructSparseAttnMode.disabled:
             return func(*args, **kwargs)
 
         if func is torch.nn.functional.scaled_dot_product_attention:
-            return cubic_attn_func(*args, **kwargs, grid=self._grid, structure_range=self._structure_range)
+            return struct_sparse_attn_func(
+                *args,
+                **kwargs,
+                sparse_mask=self._sparse_mask,
+                sparse_range_query=self._sparse_range_query,
+                sparse_range_key_value=self._sparse_range_key_value,
+            )
 
         return func(*args, **kwargs)
 

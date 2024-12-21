@@ -3,7 +3,7 @@ import importlib
 from diffusers import DiffusionPipeline
 
 
-def cubify_transformer(transformer, *args, **kwargs):
+def sparsify_transformer(transformer, *args, **kwargs):
     transformer_cls_name = transformer.__class__.__name__
     if False:
         pass
@@ -17,11 +17,11 @@ def cubify_transformer(transformer, *args, **kwargs):
         raise ValueError(f"Unknown transformer class name: {transformer_cls_name}")
 
     adapter_module = importlib.import_module(f".{adapter_name}", __package__)
-    cubify_transformer_fn = getattr(adapter_module, "cubify_transformer")
-    return cubify_transformer_fn(transformer, *args, **kwargs)
+    sparsify_transformer_fn = getattr(adapter_module, "sparsify_transformer")
+    return sparsify_transformer_fn(transformer, *args, **kwargs)
 
 
-def cubify_pipe(pipe: DiffusionPipeline, *args, **kwargs):
+def sparsify_pipe(pipe: DiffusionPipeline, *args, **kwargs):
     assert isinstance(pipe, DiffusionPipeline)
 
     pipe_cls_name = pipe.__class__.__name__
@@ -37,5 +37,5 @@ def cubify_pipe(pipe: DiffusionPipeline, *args, **kwargs):
         raise ValueError(f"Unknown pipeline class name: {pipe_cls_name}")
 
     adapter_module = importlib.import_module(f".{adapter_name}", __package__)
-    cubify_pipe_fn = getattr(adapter_module, "cubify_pipe")
-    return cubify_pipe_fn(pipe, *args, **kwargs)
+    sparsify_pipe_fn = getattr(adapter_module, "sparsify_pipe")
+    return sparsify_pipe_fn(pipe, *args, **kwargs)
