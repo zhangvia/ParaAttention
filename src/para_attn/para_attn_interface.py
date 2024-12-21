@@ -385,7 +385,7 @@ class StructuredSparseAttnFunc(torch.autograd.Function):
             if key_sparse.numel() > 0:
                 sparse_output, sparse_lse = [], []
                 for mask_row, query_chunk in zip(sparse_mask, query_sparse.chunk(sparse_mask.shape[0], dim=2)):
-                    sparse_output, sparse_lse = para_attn_ops.attention_forward_with_lse(
+                    row_output, row_lse = para_attn_ops.attention_forward_with_lse(
                         query_chunk,
                         key_sparse,
                         value_sparse,
@@ -394,6 +394,10 @@ class StructuredSparseAttnFunc(torch.autograd.Function):
                         is_causal=is_causal,
                         scale=scale,
                     )
+                    sparse_output.append(row_output)
+                    sparse_lse.append(row_lse)
+                    del row_output
+                    del row_lse
                     # sub_sdpa_merger = torch_ring_attention._SDPAMerger(
                     #     not para_attn.config.attention.allow_reduced_precision_compute
                     # )
