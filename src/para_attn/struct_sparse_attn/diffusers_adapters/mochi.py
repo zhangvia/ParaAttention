@@ -27,8 +27,8 @@ def sparsify_transformer(
         post_patch_width = width // p
 
         sparse_mask = torch.eye(post_patch_num_frames, dtype=torch.bool)
-        sparse_mask[1:] = torch.eye(post_patch_num_frames, dtype=torch.bool)[:-1]
-        sparse_mask[:, 1:] = torch.eye(post_patch_num_frames, dtype=torch.bool)[:, :-1]
+        sparse_mask[1:].logical_or_(torch.eye(post_patch_num_frames, dtype=torch.bool)[:-1])
+        sparse_mask[:, 1:].logical_or_(torch.eye(post_patch_num_frames, dtype=torch.bool)[:, :-1])
         with StructSparseAttnMode(
             sparse_mask=sparse_mask,
             sparse_range_query=(
