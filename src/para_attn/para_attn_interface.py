@@ -330,7 +330,7 @@ class StructuredSparseAttnFunc(torch.autograd.Function):
                 sparse_range_query[1] - sparse_range_query[0],
                 s_q - sparse_range_query[1],
             ],
-            dim=-2,
+            dim=2,
         )
         key_left, key_sparse, key_right = key.split(
             [
@@ -338,7 +338,7 @@ class StructuredSparseAttnFunc(torch.autograd.Function):
                 sparse_range_key_value[1] - sparse_range_key_value[0],
                 s_kv - sparse_range_key_value[1],
             ],
-            dim=-2,
+            dim=2,
         )
         value_left, value_sparse, value_right = value.split(
             [
@@ -346,7 +346,7 @@ class StructuredSparseAttnFunc(torch.autograd.Function):
                 sparse_range_key_value[1] - sparse_range_key_value[0],
                 s_kv - sparse_range_key_value[1],
             ],
-            dim=-2,
+            dim=2,
         )
 
         output = []
@@ -382,39 +382,40 @@ class StructuredSparseAttnFunc(torch.autograd.Function):
                     )
                 )
 
-            sparse_output, sparse_lse = [], []
-            for mask_row, query_chunk in zip(sparse_mask, query_sparse.chunk(sparse_mask.shape[0], dim=2)):
-                sub_sdpa_merger = torch_ring_attention._SDPAMerger(
-                    not para_attn.config.attention.allow_reduced_precision_compute
-                )
-                for cond, key_chunk, value_chunk in zip(
-                    mask_row,
-                    key_sparse.chunk(sparse_mask.shape[1], dim=2),
-                    value_sparse.chunk(sparse_mask.shape[1], dim=2),
-                ):
-                    if cond:
-                        sub_sdpa_merger.step(
-                            *para_attn_ops.attention_forward_with_lse(
-                                query_chunk,
-                                key_chunk,
-                                value_chunk,
-                                attn_mask=attn_mask,
-                                dropout_p=dropout_p,
-                                is_causal=is_causal,
-                                scale=scale,
+            if key_sparse.numel() > 0:
+                sparse_output, sparse_lse = [], []
+                for mask_row, query_chunk in zip(sparse_mask, query_sparse.chunk(sparse_mask.shape[0], dim=2)):
+                    sub_sdpa_merger = torch_ring_attention._SDPAMerger(
+                        not para_attn.config.attention.allow_reduced_precision_compute
+                    )
+                    for cond, key_chunk, value_chunk in zip(
+                        mask_row,
+                        key_sparse.chunk(sparse_mask.shape[1], dim=2),
+                        value_sparse.chunk(sparse_mask.shape[1], dim=2),
+                    ):
+                        if cond:
+                            sub_sdpa_merger.step(
+                                *para_attn_ops.attention_forward_with_lse(
+                                    query_chunk,
+                                    key_chunk,
+                                    value_chunk,
+                                    attn_mask=attn_mask,
+                                    dropout_p=dropout_p,
+                                    is_causal=is_causal,
+                                    scale=scale,
+                                )
                             )
-                        )
-                row_output, row_lse = sub_sdpa_merger.results()
-                sparse_output.append(row_output)
-                sparse_lse.append(row_lse)
-                del sub_sdpa_merger
-                del row_output
-                del row_lse
-            sparse_output = torch.cat(sparse_output, dim=2)
-            sparse_lse = torch.cat(sparse_lse, dim=2)
-            sdpa_merger.step(sparse_output, sparse_lse)
-            del sparse_output
-            del sparse_lse
+                    row_output, row_lse = sub_sdpa_merger.results()
+                    sparse_output.append(row_output)
+                    sparse_lse.append(row_lse)
+                    del sub_sdpa_merger
+                    del row_output
+                    del row_lse
+                sparse_output = torch.cat(sparse_output, dim=2)
+                sparse_lse = torch.cat(sparse_lse, dim=2)
+                sdpa_merger.step(sparse_output, sparse_lse)
+                del sparse_output
+                del sparse_lse
 
             if key_right.numel() > 0:
                 sdpa_merger.step(

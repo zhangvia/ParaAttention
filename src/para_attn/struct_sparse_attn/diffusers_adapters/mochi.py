@@ -32,8 +32,8 @@ def sparsify_transformer(
         with StructSparseAttnMode(
             sparse_mask=sparse_mask,
             sparse_range_query=(
-                encoder_hidden_states.shape[-2],
-                encoder_hidden_states.shape[-2] + post_patch_num_frames * post_patch_height * post_patch_width,
+                0,
+                post_patch_num_frames * post_patch_height * post_patch_width,
             ),
         ):
             output = original_forward(
