@@ -384,27 +384,48 @@ class StructuredSparseAttnFunc(torch.autograd.Function):
 
             if key_sparse.numel() > 0:
                 sparse_output, sparse_lse = [], []
+                key_value_chunk_size = key_sparse.shape[2] // sparse_mask.shape[1]
                 for mask_row, query_chunk in zip(sparse_mask, query_sparse.chunk(sparse_mask.shape[0], dim=2)):
                     sub_sdpa_merger = torch_ring_attention._SDPAMerger(
                         not para_attn.config.attention.allow_reduced_precision_compute
                     )
-                    for cond, key_chunk, value_chunk in zip(
-                        mask_row,
-                        key_sparse.chunk(sparse_mask.shape[1], dim=2),
-                        value_sparse.chunk(sparse_mask.shape[1], dim=2),
-                    ):
-                        if cond:
-                            sub_sdpa_merger.step(
-                                *para_attn_ops.attention_forward_with_lse(
-                                    query_chunk,
-                                    key_chunk,
-                                    value_chunk,
-                                    attn_mask=attn_mask,
-                                    dropout_p=dropout_p,
-                                    is_causal=is_causal,
-                                    scale=scale,
-                                )
+                    start = 0
+                    while start < mask_row.shape[0]:
+                        if not mask_row[start]:
+                            start += 1
+                            continue
+                        end = start + 1
+                        while end < mask_row.shape[0] and mask_row[end]:
+                            end += 1
+                        sub_sdpa_merger.step(
+                            *para_attn_ops.attention_forward_with_lse(
+                                query_chunk,
+                                key_sparse[:, :, start * key_value_chunk_size : end * key_value_chunk_size],
+                                value_sparse[:, :, start * key_value_chunk_size : end * key_value_chunk_size],
+                                attn_mask=attn_mask,
+                                dropout_p=dropout_p,
+                                is_causal=is_causal,
+                                scale=scale,
                             )
+                        )
+                        start = end + 1
+                    # for cond, key_chunk, value_chunk in zip(
+                    #     mask_row,
+                    #     key_sparse.chunk(sparse_mask.shape[1], dim=2),
+                    #     value_sparse.chunk(sparse_mask.shape[1], dim=2),
+                    # ):
+                    #     if cond:
+                    #         sub_sdpa_merger.step(
+                    #             *para_attn_ops.attention_forward_with_lse(
+                    #                 query_chunk,
+                    #                 key_chunk,
+                    #                 value_chunk,
+                    #                 attn_mask=attn_mask,
+                    #                 dropout_p=dropout_p,
+                    #                 is_causal=is_causal,
+                    #                 scale=scale,
+                    #             )
+                    #         )
                     row_output, row_lse = sub_sdpa_merger.results()
                     sparse_output.append(row_output)
                     sparse_lse.append(row_lse)
