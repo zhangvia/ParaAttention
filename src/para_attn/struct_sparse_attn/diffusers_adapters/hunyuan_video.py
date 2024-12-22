@@ -1,20 +1,14 @@
 import functools
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Union
 
 import torch
 from diffusers import DiffusionPipeline, HunyuanVideoTransformer3DModel
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 
-import para_attn.primitives as DP
-from para_attn.context_parallel import init_context_parallel_mesh
-from para_attn.para_attn_interface import SparseKVAttnMode, UnifiedAttnMode
+from para_attn.para_attn_interface import SparseKVAttnMode, StructSparseAttnMode
 
 
-def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh=None):
-    mesh = init_context_parallel_mesh(transformer.device.type, mesh=mesh)
-    batch_mesh = mesh["batch"]
-    seq_mesh = mesh["ring", "ulysses"]._flatten()
-
+def sparsify_transformer(transformer: HunyuanVideoTransformer3DModel):
     @functools.wraps(transformer.__class__.forward)
     def new_forward(
         self,
@@ -49,44 +43,22 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
             [latent_attention_mask, encoder_attention_mask.unsqueeze(1).to(torch.bool)], dim=-1
         )  # [B, 1, N + M]
 
-        world_size = DP.get_world_size(seq_mesh)
-
-        hidden_states = DP.get_assigned_chunk(hidden_states, dim=0, group=batch_mesh)
-        hidden_states = DP.get_assigned_chunk(hidden_states, dim=-2, group=seq_mesh)
-        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
-        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=-2, group=seq_mesh)
-
-        hidden_states_len = hidden_states.shape[-2]
-        encoder_hidden_states_len = encoder_hidden_states.shape[-2]
-
         attention_mask = attention_mask[:1, ..., :1, :]
 
-        new_attention_mask = []
-        for i in range(world_size):
-            new_attention_mask.append(attention_mask[..., :, i * hidden_states_len : (i + 1) * hidden_states_len])
-            new_attention_mask.append(
-                attention_mask[
-                    ...,
-                    :,
-                    world_size * hidden_states_len
-                    + i * encoder_hidden_states_len : world_size * hidden_states_len
-                    + (i + 1) * encoder_hidden_states_len,
-                ]
-            )
-        new_attention_mask = torch.cat(new_attention_mask, dim=-1)
-        attention_mask = new_attention_mask
-
-        freqs_cos, freqs_sin = image_rotary_emb
-
-        def get_rotary_emb_chunk(freqs):
-            freqs = DP.get_assigned_chunk(freqs, dim=0, group=seq_mesh)
-            return freqs
-
-        freqs_cos = get_rotary_emb_chunk(freqs_cos)
-        freqs_sin = get_rotary_emb_chunk(freqs_sin)
-        image_rotary_emb = (freqs_cos, freqs_sin)
-
-        with SparseKVAttnMode(), UnifiedAttnMode(mesh):
+        sparse_mask = torch.zeros(post_patch_num_frames, post_patch_num_frames, dtype=torch.bool)
+        for i, mask_row in enumerate(sparse_mask):
+            mask_row[
+                max(0, i - (post_patch_num_frames + 1) // 2) : min(
+                    post_patch_num_frames, i + (post_patch_num_frames + 1) // 2
+                )
+            ] = True
+        with StructSparseAttnMode(
+            sparse_mask=sparse_mask,
+            sparse_range_query=(
+                0,
+                post_patch_num_frames * post_patch_height * post_patch_width,
+            ),
+        ), SparseKVAttnMode():
             # 4. Transformer blocks
             if torch.is_grad_enabled() and self.gradient_checkpointing:
 
@@ -138,9 +110,6 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
         hidden_states = self.norm_out(hidden_states, temb)
         hidden_states = self.proj_out(hidden_states)
 
-        hidden_states = DP.get_complete_tensor(hidden_states, dim=-2, group=seq_mesh)
-        hidden_states = DP.get_complete_tensor(hidden_states, dim=0, group=batch_mesh)
-
         hidden_states = hidden_states.reshape(
             batch_size, post_patch_num_frames, post_patch_height, post_patch_width, -1, p_t, p, p
         )
@@ -158,29 +127,13 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
     return transformer
 
 
-def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **kwargs):
-    original_call = pipe.__class__.__call__
-
-    if not getattr(original_call, "is_parallelized", False):
-
-        @functools.wraps(original_call)
-        def new_call(self, *args, generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None, **kwargs):
-            if generator is None:
-                seed = torch.seed()
-                seed += torch.iinfo(torch.int64).min
-                seed_t = torch.full([1], seed, dtype=torch.int64, device=self.device)
-                seed_t = DP.get_complete_tensor(seed_t, dim=0)
-                seed_t = DP.get_assigned_chunk(seed_t, dim=0, idx=0)
-                seed = seed_t.item()
-                seed -= torch.iinfo(torch.int64).min
-                generator = torch.Generator(self.device).manual_seed(seed)
-            return original_call(self, *args, generator=generator, **kwargs)
-
-        new_call.is_parallelized = True
-
-        pipe.__class__.__call__ = new_call
-
+def sparsify_pipe(
+    pipe: DiffusionPipeline,
+    *,
+    shallow_patch: bool = False,
+    **kwargs,
+):
     if not shallow_patch:
-        parallelize_transformer(pipe.transformer, **kwargs)
+        sparsify_transformer(pipe.transformer, **kwargs)
 
     return pipe

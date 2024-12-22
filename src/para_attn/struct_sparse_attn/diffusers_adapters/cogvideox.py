@@ -30,7 +30,13 @@ def sparsify_transformer(
         post_patch_height = height // p
         post_patch_width = width // p
 
-        sparse_mask = torch.triu(torch.ones(post_patch_num_frames, post_patch_num_frames, dtype=torch.bool)).T
+        sparse_mask = torch.zeros(post_patch_num_frames, post_patch_num_frames, dtype=torch.bool)
+        for i, mask_row in enumerate(sparse_mask):
+            mask_row[
+                max(0, i - (post_patch_num_frames + 1) // 2) : min(
+                    post_patch_num_frames, i + (post_patch_num_frames + 1) // 2
+                )
+            ] = True
         with StructSparseAttnMode(
             sparse_mask=sparse_mask,
             sparse_range_query=(
