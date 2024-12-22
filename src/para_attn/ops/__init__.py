@@ -2,6 +2,7 @@ from typing import Optional, Tuple
 
 import torch
 import torch.backends.cuda as cuda_backend
+import torch.nn.functional as F
 from torch.backends.cuda import SDPAParams
 
 aten = torch.ops.aten
@@ -205,7 +206,7 @@ def attention_forward(
     *,
     scale: Optional[float] = None,
 ) -> torch.Tensor:
-    return aten.scaled_dot_product_attention(
+    return F.scaled_dot_product_attention(
         query,
         key,
         value,
@@ -227,7 +228,7 @@ def _(
     *,
     scale: Optional[float] = None,
 ) -> torch.Tensor:
-    return aten.scaled_dot_product_attention(
+    return F.scaled_dot_product_attention(
         query,
         key,
         value,
@@ -249,7 +250,7 @@ def _attention_forward_sparse_kv(
     scale=None,
 ):
     if attn_mask is None:
-        return aten.scaled_dot_product_attention(
+        return F.scaled_dot_product_attention(
             query,
             key,
             value,
@@ -269,7 +270,7 @@ def _attention_forward_sparse_kv(
     indices = indices[attn_mask]
     key = key[..., indices, :]
     value = value[..., indices, :]
-    return aten.scaled_dot_product_attention(
+    return F.scaled_dot_product_attention(
         query,
         key,
         value,
