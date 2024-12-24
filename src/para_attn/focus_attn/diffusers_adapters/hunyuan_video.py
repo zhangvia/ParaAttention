@@ -1,4 +1,3 @@
-import contextlib
 import functools
 from typing import Any, Dict, Optional, Union
 
@@ -124,17 +123,15 @@ def apply_focus_attn_on_transformer(
                     )
 
             else:
-                for i, block in enumerate(self.transformer_blocks):
-                    with contextlib.nullcontext() if True else FocusedAttnMode.disable():
-                        hidden_states, encoder_hidden_states = block(
-                            hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
-                        )
+                for block in self.transformer_blocks:
+                    hidden_states, encoder_hidden_states = block(
+                        hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
+                    )
 
-                for i, block in enumerate(self.single_transformer_blocks):
-                    with contextlib.nullcontext() if True else FocusAttnMode.disable():
-                        hidden_states, encoder_hidden_states = block(
-                            hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
-                        )
+                for block in self.single_transformer_blocks:
+                    hidden_states, encoder_hidden_states = block(
+                        hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
+                    )
 
         # 5. Output projection
         hidden_states = self.norm_out(hidden_states, temb)
