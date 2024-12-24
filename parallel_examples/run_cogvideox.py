@@ -27,6 +27,8 @@ parallelize_pipe(
     ),
 )
 
+# pipe.enable_model_cpu_offload()
+
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 

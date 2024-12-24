@@ -15,6 +15,8 @@ from para_attn.focus_attn.diffusers_adapters import apply_focus_attn_on_pipe
 
 apply_focus_attn_on_pipe(pipe)
 
+# pipe.enable_model_cpu_offload()
+
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
