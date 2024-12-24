@@ -27,11 +27,13 @@ __all__ = [
     "InBatchAttnMode",
     "SparseKVAttnMode",
     "StructSparseAttnMode",
+    "FocusAttnMode",
     "ring_attn_func",
     "ulysses_attn_func",
     "in_batch_attn_func",
     "sparse_kv_attn_func",
     "struct_sparse_attn_func",
+    "focus_attn_func",
 ]
 
 
