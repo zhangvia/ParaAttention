@@ -4,10 +4,13 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from diffusers import DiffusionPipeline, HunyuanVideoTransformer3DModel
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
+from diffusers.utils import logging, scale_lora_layers, unscale_lora_layers, USE_PEFT_BACKEND
 
 import para_attn.primitives as DP
 from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.para_attn_interface import SparseKVAttnMode, UnifiedAttnMode
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh=None):
@@ -24,8 +27,22 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
         encoder_attention_mask: torch.Tensor,
         pooled_projections: torch.Tensor,
         guidance: torch.Tensor = None,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = True,
     ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
+        if attention_kwargs is not None:
+            attention_kwargs = attention_kwargs.copy()
+            lora_scale = attention_kwargs.pop("scale", 1.0)
+        else:
+            lora_scale = 1.0
+
+        if USE_PEFT_BACKEND:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self, lora_scale)
+        else:
+            if attention_kwargs is not None and attention_kwargs.get("scale", None) is not None:
+                logger.warning("Passing `scale` via `attention_kwargs` when not using the PEFT backend is ineffective.")
+
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
         p, p_t = self.config.patch_size, self.config.patch_size_t
         post_patch_num_frames = num_frames // p_t
@@ -147,6 +164,10 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
         hidden_states = hidden_states.permute(0, 4, 1, 5, 2, 6, 3, 7)
         hidden_states = hidden_states.flatten(6, 7).flatten(4, 5).flatten(2, 3)
 
+        if USE_PEFT_BACKEND:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self, lora_scale)
+
         if not return_dict:
             return (hidden_states,)
 
@@ -158,7 +179,7 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
     return transformer
 
 
-def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, mesh=None):
+def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **kwargs):
     original_call = pipe.__class__.__call__
 
     if not getattr(original_call, "is_parallelized", False):
@@ -181,6 +202,6 @@ def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, me
         pipe.__class__.__call__ = new_call
 
     if not shallow_patch:
-        parallelize_transformer(pipe.transformer, mesh=mesh)
+        parallelize_transformer(pipe.transformer, **kwargs)
 
     return pipe

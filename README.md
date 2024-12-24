@@ -25,13 +25,13 @@ For example, to run FLUX with 2 GPUs:
 
 ```bash
 # Use --nproc_per_node to specify the number of GPUs
-torchrun --nproc_per_node=2 examples/run_flux.py
+torchrun --nproc_per_node=2 parallel_examples/run_flux.py
 ```
 
-- [FLUX](examples/run_flux.py)
-- [HunyuanVideo🚀](examples/run_hunyuan_video.py)
-- [Mochi](examples/run_mochi.py)
-- [CogVideoX](examples/run_cogvideox.py)
+- [FLUX](parallel_examples/run_flux.py)
+- [HunyuanVideo🚀](parallel_examples/run_hunyuan_video.py)
+- [Mochi](parallel_examples/run_mochi.py)
+- [CogVideoX](parallel_examples/run_cogvideox.py)
 
 **NOTE**: To run `HunyuanVideo`, you need to install `diffusers` from its latest master branch.
 It is suggested to run `HunyuanVideo` with GPUs with at least 48GB memory, or you might experience OOM errors,
@@ -155,10 +155,10 @@ import torch.distributed as dist
 from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel
 from diffusers.utils import export_to_video
 
-# RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.
-torch.backends.cuda.enable_cudnn_sdp(False)
-
 dist.init_process_group()
+
+# [rank1]: RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.  (Could this error message be improved?  If so, please report an enhancement request to PyTorch.)
+torch.backends.cuda.enable_cudnn_sdp(False)
 
 model_id = "tencent/HunyuanVideo"
 transformer = HunyuanVideoTransformer3DModel.from_pretrained(
@@ -234,7 +234,7 @@ dist.init_process_group()
 
 pipe = MochiPipeline.from_pretrained(
     "genmo/mochi-1-preview",
-    torch_dtype=torch.float16,
+    torch_dtype=torch.bfloat16,
 ).to(f"cuda:{dist.get_rank()}")
 
 # Enable memory savings
@@ -302,9 +302,9 @@ vae = parallelize_vae(vae)
 
 | Model | Command |
 | - | - |
-| `FLUX` | `torchrun --nproc_per_node=2 examples/run_flux.py` |
-| `Mochi` | `torchrun --nproc_per_node=2 examples/run_mochi.py` |
-| `CogVideoX` | `torchrun --nproc_per_node=2 examples/run_cogvideox.py` |
+| `FLUX` | `torchrun --nproc_per_node=2 parallel_examples/run_flux.py` |
+| `Mochi` | `torchrun --nproc_per_node=2 parallel_examples/run_mochi.py` |
+| `CogVideoX` | `torchrun --nproc_per_node=2 parallel_examples/run_cogvideox.py` |
 
 ## Run Unified Attention (Hybird Ulysses Style and Ring Style) with `torch.compile`
 

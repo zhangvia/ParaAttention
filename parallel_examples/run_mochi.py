@@ -7,7 +7,7 @@ dist.init_process_group()
 
 pipe = MochiPipeline.from_pretrained(
     "genmo/mochi-1-preview",
-    torch_dtype=torch.float16,
+    torch_dtype=torch.bfloat16,
 ).to(f"cuda:{dist.get_rank()}")
 
 # Enable memory savings
@@ -25,6 +25,8 @@ parallelize_pipe(
         max_ring_dim_size=2,
     ),
 )
+
+# pipe.enable_model_cpu_offload()
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")

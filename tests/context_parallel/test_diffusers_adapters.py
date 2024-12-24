@@ -132,7 +132,7 @@ class MochiPipelineTest(DiffusionPipelineTest):
 
     @pytest.mark.skipif("not torch.cuda.is_available()")
     @with_comms
-    @parametrize("dtype", [torch.float16])
+    @parametrize("dtype", [torch.bfloat16])
     @parametrize("device", ["cuda"])
     @parametrize(
         "parallelize,compile,use_batch,use_ring",
@@ -191,7 +191,7 @@ class HunyuanVideoPipelineTest(DiffusionPipelineTest):
     def new_pipe(self, dtype, device):
         from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel
 
-        # RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.
+        # [rank1]: RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.  (Could this error message be improved?  If so, please report an enhancement request to PyTorch.)
         torch.backends.cuda.enable_cudnn_sdp(False)
 
         model_id = "tencent/HunyuanVideo"

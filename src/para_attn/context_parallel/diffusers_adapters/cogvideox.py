@@ -107,7 +107,7 @@ def parallelize_transformer(transformer: CogVideoXTransformer3DModel, *, mesh=No
     return transformer
 
 
-def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, mesh=None):
+def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **kwargs):
     original_call = pipe.__class__.__call__
 
     if not getattr(original_call, "is_parallelized", False):
@@ -130,6 +130,6 @@ def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, me
         pipe.__class__.__call__ = new_call
 
     if not shallow_patch:
-        parallelize_transformer(pipe.transformer, mesh=mesh)
+        parallelize_transformer(pipe.transformer, **kwargs)
 
     return pipe

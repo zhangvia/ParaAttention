@@ -3,10 +3,10 @@ import torch.distributed as dist
 from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel
 from diffusers.utils import export_to_video
 
-# RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.
-torch.backends.cuda.enable_cudnn_sdp(False)
-
 dist.init_process_group()
+
+# [rank1]: RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.  (Could this error message be improved?  If so, please report an enhancement request to PyTorch.)
+torch.backends.cuda.enable_cudnn_sdp(False)
 
 model_id = "tencent/HunyuanVideo"
 transformer = HunyuanVideoTransformer3DModel.from_pretrained(
@@ -44,6 +44,8 @@ parallelize_pipe(
     mesh=mesh,
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
+
+# pipe.enable_model_cpu_offload()
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
