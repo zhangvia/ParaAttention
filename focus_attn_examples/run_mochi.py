@@ -11,9 +11,9 @@ pipe = MochiPipeline.from_pretrained(
 # pipe.enable_model_cpu_offload()
 pipe.enable_vae_tiling()
 
-from para_attn.struct_sparse_attn.diffusers_adapters import sparsify_pipe
+from para_attn.focus_attn.diffusers_adapters import apply_focus_attn_on_pipe
 
-sparsify_pipe(pipe)
+apply_focus_attn_on_pipe(pipe)
 
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 

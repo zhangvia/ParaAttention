@@ -1,3 +1,4 @@
+import contextlib
 import functools
 from typing import Any, Dict, Optional, Union
 
@@ -6,12 +7,19 @@ from diffusers import DiffusionPipeline, HunyuanVideoTransformer3DModel
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.utils import logging, scale_lora_layers, unscale_lora_layers, USE_PEFT_BACKEND
 
-from para_attn.para_attn_interface import SparseKVAttnMode, StructSparseAttnMode
+from para_attn.para_attn_interface import FocusAttnMode, SparseKVAttnMode
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-def sparsify_transformer(transformer: HunyuanVideoTransformer3DModel):
+def apply_focus_attn_on_transformer(
+    transformer: HunyuanVideoTransformer3DModel,
+    *,
+    diagonal_width=5,
+    left_width=1,
+):
+    assert diagonal_width % 2 == 1, "diagonal_width must be an odd number"
+
     @functools.wraps(transformer.__class__.forward)
     def new_forward(
         self,
@@ -62,20 +70,23 @@ def sparsify_transformer(transformer: HunyuanVideoTransformer3DModel):
 
         attention_mask = attention_mask[:1, ..., :1, :]
 
-        sparse_mask = torch.zeros(post_patch_num_frames, post_patch_num_frames, dtype=torch.bool)
-        for i, mask_row in enumerate(sparse_mask):
-            mask_row[
-                max(0, i - (post_patch_num_frames + 3) // 4) : min(
-                    post_patch_num_frames, i + (post_patch_num_frames + 3) // 4
-                )
+        focus_mask = torch.zeros(post_patch_num_frames, post_patch_num_frames, dtype=torch.bool)
+        for i in range(post_patch_num_frames):
+            focus_mask[
+                i, max(0, i - diagonal_width // 2) : min(post_patch_num_frames, i + diagonal_width // 2 + 1)
             ] = True
-        with StructSparseAttnMode(
-            sparse_mask=sparse_mask,
-            sparse_range_query=(
+        focus_mask[:, :left_width] = True
+        with FocusAttnMode(
+            focus_mask=focus_mask,
+            focus_range_query=(
                 0,
                 post_patch_num_frames * post_patch_height * post_patch_width,
             ),
-        ), SparseKVAttnMode():
+            focus_range_key_value=(
+                0,
+                post_patch_num_frames * post_patch_height * post_patch_width,
+            ),
+        ), SparseKVAttnMode(dispatch_to_custom_ops=False):
             # 4. Transformer blocks
             if torch.is_grad_enabled() and self.gradient_checkpointing:
 
@@ -113,15 +124,17 @@ def sparsify_transformer(transformer: HunyuanVideoTransformer3DModel):
                     )
 
             else:
-                for block in self.transformer_blocks:
-                    hidden_states, encoder_hidden_states = block(
-                        hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
-                    )
+                for i, block in enumerate(self.transformer_blocks):
+                    with contextlib.nullcontext() if True else FocusedAttnMode.disable():
+                        hidden_states, encoder_hidden_states = block(
+                            hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
+                        )
 
-                for block in self.single_transformer_blocks:
-                    hidden_states, encoder_hidden_states = block(
-                        hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
-                    )
+                for i, block in enumerate(self.single_transformer_blocks):
+                    with contextlib.nullcontext() if True else FocusAttnMode.disable():
+                        hidden_states, encoder_hidden_states = block(
+                            hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
+                        )
 
         # 5. Output projection
         hidden_states = self.norm_out(hidden_states, temb)
@@ -148,13 +161,13 @@ def sparsify_transformer(transformer: HunyuanVideoTransformer3DModel):
     return transformer
 
 
-def sparsify_pipe(
+def apply_focus_attn_on_pipe(
     pipe: DiffusionPipeline,
     *,
     shallow_patch: bool = False,
     **kwargs,
 ):
     if not shallow_patch:
-        sparsify_transformer(pipe.transformer, **kwargs)
+        apply_focus_attn_on_transformer(pipe.transformer, **kwargs)
 
     return pipe

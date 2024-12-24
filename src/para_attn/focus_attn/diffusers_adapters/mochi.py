@@ -3,10 +3,17 @@ import functools
 import torch
 from diffusers import DiffusionPipeline, MochiTransformer3DModel
 
-from para_attn.para_attn_interface import StructSparseAttnMode
+from para_attn.para_attn_interface import FocusAttnMode
 
 
-def sparsify_transformer(transformer: MochiTransformer3DModel):
+def apply_focus_attn_on_transformer(
+    transformer: MochiTransformer3DModel,
+    *,
+    diagonal_width=5,
+    left_width=1,
+):
+    assert diagonal_width % 2 == 1, "diagonal_width must be an odd number"
+
     original_forward = transformer.forward
 
     @functools.wraps(transformer.__class__.forward)
@@ -24,16 +31,19 @@ def sparsify_transformer(transformer: MochiTransformer3DModel):
         post_patch_height = height // p
         post_patch_width = width // p
 
-        sparse_mask = torch.zeros(post_patch_num_frames, post_patch_num_frames, dtype=torch.bool)
-        for i, mask_row in enumerate(sparse_mask):
-            mask_row[
-                max(0, i - (post_patch_num_frames + 3) // 4) : min(
-                    post_patch_num_frames, i + (post_patch_num_frames + 1) // 2
-                )
+        focus_mask = torch.zeros(post_patch_num_frames, post_patch_num_frames, dtype=torch.bool)
+        for i in range(post_patch_num_frames):
+            focus_mask[
+                i, max(0, i - diagonal_width // 2) : min(post_patch_num_frames, i + diagonal_width // 2 + 1)
             ] = True
-        with StructSparseAttnMode(
-            sparse_mask=sparse_mask,
-            sparse_range_query=(
+        focus_mask[:, :left_width] = True
+        with FocusAttnMode(
+            focus_mask=focus_mask,
+            focus_range_query=(
+                0,
+                post_patch_num_frames * post_patch_height * post_patch_width,
+            ),
+            focus_range_key_value=(
                 0,
                 post_patch_num_frames * post_patch_height * post_patch_width,
             ),
@@ -61,7 +71,7 @@ def sparsify_transformer(transformer: MochiTransformer3DModel):
         *args,
         **kwargs,
     ):
-        with StructSparseAttnMode.disable():
+        with FocusAttnMode.disable():
             output = original_time_embed_forward(
                 timestep, encoder_hidden_states, encoder_attention_mask, *args, **kwargs
             )
@@ -73,13 +83,13 @@ def sparsify_transformer(transformer: MochiTransformer3DModel):
     return transformer
 
 
-def sparsify_pipe(
+def apply_focus_attn_on_pipe(
     pipe: DiffusionPipeline,
     *,
     shallow_patch: bool = False,
     **kwargs,
 ):
     if not shallow_patch:
-        sparsify_transformer(pipe.transformer, **kwargs)
+        apply_focus_attn_on_transformer(pipe.transformer, **kwargs)
 
     return pipe
