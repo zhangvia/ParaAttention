@@ -834,7 +834,7 @@ class RingAttnMode(TorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable()
-    def __init__(self, *, mesh=None):
+    def __init__(self, mesh=None):
         super().__init__()
         self._mesh = mesh
 
@@ -878,7 +878,7 @@ class UlyssesAttnMode(TorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable()
-    def __init__(self, *, mesh=None):
+    def __init__(self, mesh=None):
         super().__init__()
         self._mesh = mesh
 
@@ -922,7 +922,7 @@ class UnifiedAttnMode(TorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable()
-    def __init__(self, *, mesh=None):
+    def __init__(self, mesh=None):
         super().__init__()
 
         self._parallel_method = "ulysses"
