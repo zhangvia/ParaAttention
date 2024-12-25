@@ -210,12 +210,12 @@ class HunyuanVideoPipelineTest(DiffusionPipelineTest):
 
         pipe.vae.enable_tiling(
             # Make it runnable on GPUs with 48GB memory
-            tile_sample_min_height=128,
-            tile_sample_stride_height=96,
-            tile_sample_min_width=128,
-            tile_sample_stride_width=96,
-            tile_sample_min_num_frames=32,
-            tile_sample_stride_num_frames=24,
+            # tile_sample_min_height=128,
+            # tile_sample_stride_height=96,
+            # tile_sample_min_width=128,
+            # tile_sample_stride_width=96,
+            # tile_sample_min_num_frames=32,
+            # tile_sample_stride_num_frames=24,
         )
 
         # Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
@@ -228,9 +228,9 @@ class HunyuanVideoPipelineTest(DiffusionPipelineTest):
     def call_pipe(self, pipe, *args, **kwargs):
         return pipe(
             prompt="A cat walks on the grass, realistic",
-            height=320,
-            width=512,
-            num_frames=61,
+            height=720,
+            width=1280,
+            num_frames=129,
             num_inference_steps=30,
             output_type="pil" if self.rank == 0 else "pt",
         )

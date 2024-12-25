@@ -121,7 +121,7 @@ parallelize_pipe(
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
-# pipe.enable_model_cpu_offload()
+# pipe.enable_model_cpu_offload(gpu_id=dist.get_rank())
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
@@ -178,12 +178,12 @@ pipe = HunyuanVideoPipeline.from_pretrained(
 
 pipe.vae.enable_tiling(
     # Make it runnable on GPUs with 48GB memory
-    tile_sample_min_height=128,
-    tile_sample_stride_height=96,
-    tile_sample_min_width=128,
-    tile_sample_stride_width=96,
-    tile_sample_min_num_frames=32,
-    tile_sample_stride_num_frames=24,
+    # tile_sample_min_height=128,
+    # tile_sample_stride_height=96,
+    # tile_sample_min_width=128,
+    # tile_sample_stride_width=96,
+    # tile_sample_min_num_frames=32,
+    # tile_sample_stride_num_frames=24,
 )
 
 from para_attn.context_parallel import init_context_parallel_mesh
@@ -199,16 +199,16 @@ parallelize_pipe(
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
-# pipe.enable_model_cpu_offload()
+# pipe.enable_model_cpu_offload(gpu_id=dist.get_rank())
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
 output = pipe(
     prompt="A cat walks on the grass, realistic",
-    height=320,
-    width=512,
-    num_frames=61,
+    height=720,
+    width=1280,
+    num_frames=129,
     num_inference_steps=30,
     output_type="pil" if dist.get_rank() == 0 else "pt",
 ).frames[0]
@@ -254,7 +254,7 @@ parallelize_pipe(
 )
 
 # Enable memory savings
-# pipe.enable_model_cpu_offload()
+# pipe.enable_model_cpu_offload(gpu_id=dist.get_rank())
 pipe.enable_vae_tiling()
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True

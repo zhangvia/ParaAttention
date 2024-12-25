@@ -23,8 +23,8 @@ parallelize_pipe(
     ),
 )
 
-# pipe.enable_model_cpu_offload()
-# pipe.enable_sequential_cpu_offload()
+# pipe.enable_model_cpu_offload(gpu_id=dist.get_rank())
+# pipe.enable_sequential_cpu_offload(gpu_id=dist.get_rank())
 pipe.vae.enable_slicing()
 pipe.vae.enable_tiling()
 

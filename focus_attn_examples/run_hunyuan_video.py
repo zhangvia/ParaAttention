@@ -18,12 +18,12 @@ pipe = HunyuanVideoPipeline.from_pretrained(
 
 pipe.vae.enable_tiling(
     # Make it runnable on GPUs with 48GB memory
-    tile_sample_min_height=128,
-    tile_sample_stride_height=96,
-    tile_sample_min_width=128,
-    tile_sample_stride_width=96,
-    tile_sample_min_num_frames=32,
-    tile_sample_stride_num_frames=24,
+    # tile_sample_min_height=128,
+    # tile_sample_stride_height=96,
+    # tile_sample_min_width=128,
+    # tile_sample_stride_width=96,
+    # tile_sample_min_num_frames=32,
+    # tile_sample_stride_num_frames=24,
 )
 
 from para_attn.focus_attn.diffusers_adapters import apply_focus_attn_on_pipe
@@ -36,9 +36,9 @@ apply_focus_attn_on_pipe(pipe)
 
 output = pipe(
     prompt="A cat walks on the grass, realistic",
-    height=320,
-    width=512,
-    num_frames=61,
+    height=720,
+    width=1280,
+    num_frames=129,
     num_inference_steps=30,
 ).frames[0]
 

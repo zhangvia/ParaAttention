@@ -23,7 +23,7 @@ parallelize_pipe(
 )
 
 # Enable memory savings
-# pipe.enable_model_cpu_offload()
+# pipe.enable_model_cpu_offload(gpu_id=dist.get_rank())
 pipe.enable_vae_tiling()
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
