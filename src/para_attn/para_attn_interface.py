@@ -119,6 +119,7 @@ class RingAttnFunc(torch.autograd.Function):
         mesh,
     ):
         assert _templated_ring_attention is not None, "RingAttnFunc requires a newer version of PyTorch"
+        assert torch_ring_attention is not None, "RingAttnFunc requires a newer version of PyTorch"
 
         with unittest.mock.patch.object(
             torch_ring_attention,
