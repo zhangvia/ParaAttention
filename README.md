@@ -121,6 +121,8 @@ parallelize_pipe(
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
+# pipe.enable_model_cpu_offload()
+
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
@@ -197,6 +199,8 @@ parallelize_pipe(
 )
 parallelize_vae(pipe.vae, mesh=mesh._flatten())
 
+# pipe.enable_model_cpu_offload()
+
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
@@ -237,10 +241,6 @@ pipe = MochiPipeline.from_pretrained(
     torch_dtype=torch.bfloat16,
 ).to(f"cuda:{dist.get_rank()}")
 
-# Enable memory savings
-# pipe.enable_model_cpu_offload()
-pipe.enable_vae_tiling()
-
 from para_attn.context_parallel import init_context_parallel_mesh
 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
@@ -252,6 +252,10 @@ parallelize_pipe(
         max_ring_dim_size=2,
     ),
 )
+
+# Enable memory savings
+# pipe.enable_model_cpu_offload()
+pipe.enable_vae_tiling()
 
 # torch._inductor.config.reorder_for_compute_comm_overlap = True
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")

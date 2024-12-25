@@ -7,16 +7,15 @@ pipe = CogVideoXPipeline.from_pretrained(
     torch_dtype=torch.bfloat16,
 ).to("cuda")
 
-# pipe.enable_model_cpu_offload()
-# pipe.enable_sequential_cpu_offload()
-pipe.vae.enable_slicing()
-pipe.vae.enable_tiling()
-
 from para_attn.focus_attn.diffusers_adapters import apply_focus_attn_on_pipe
 
 apply_focus_attn_on_pipe(pipe)
 
 # pipe.enable_model_cpu_offload()
+# pipe.enable_sequential_cpu_offload()
+pipe.vae.enable_slicing()
+pipe.vae.enable_tiling()
+
 
 # pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
 
