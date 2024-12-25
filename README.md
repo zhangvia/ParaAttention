@@ -1,6 +1,6 @@
 # ParaAttention
 
-Context parallel attention that works with `torch.compile`,
+Context parallel attention that accelerates DiT model inference,
 supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Ring Style**](https://arxiv.org/abs/2310.01889) parallelism.
 
 This aims to provide:
