@@ -30,6 +30,7 @@ def apply_focus_attn_on_transformer(
         guidance: torch.Tensor = None,
         attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = True,
+        **kwargs,
     ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
         if attention_kwargs is not None:
             attention_kwargs = attention_kwargs.copy()
