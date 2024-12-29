@@ -307,6 +307,7 @@ parallelize_vae(vae)
 | Model | Command |
 | - | - |
 | `FLUX` | `torchrun --nproc_per_node=2 parallel_examples/run_flux.py` |
+| `HunyuanVideo` | `torchrun --nproc_per_node=2 parallel_examples/run_hunyuan_video.py` |
 | `Mochi` | `torchrun --nproc_per_node=2 parallel_examples/run_mochi.py` |
 | `CogVideoX` | `torchrun --nproc_per_node=2 parallel_examples/run_cogvideox.py` |
 
