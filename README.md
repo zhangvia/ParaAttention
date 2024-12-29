@@ -299,7 +299,7 @@ vae = AutoencoderKL.from_pretrained(
 
 from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
 
-vae = parallelize_vae(vae)
+parallelize_vae(vae)
 ```
 
 ## All Examples
