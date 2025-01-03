@@ -315,7 +315,7 @@ With 8 NVIDIA L20 GPUs, we can generate 129 frames with 720p resolution in 30 in
 
 ## Conclusion
 
-| GPU Type | Number of GPUs | Optimizations | Inference Time (s) | Speedup |
+| GPU Type | Number of GPUs | Optimizations | Wall Time (s) | Speedup |
 | - | - | - | - | - |
 | NVIDIA L20 | 1 | Baseline | 3626.33 | 1x |
 | NVIDIA L20 | 1 | FBCache | 2271.06 | 1.59x |
