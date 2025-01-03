@@ -1,6 +1,6 @@
 # Fastest HunyuanVideo Inference with Context Parallelism and First Block Cache on NVIDIA L20 GPUs
 
-[![](https://mermaid.ink/img/pako:eNptktuK2zAQhl9lEIS01HZsOXEcXxT20NKFtgQKW-hqLxR7YglsKcjyNt7gd-84abcHKhBoPmk0p__ESlshK1gYhsKU1ux1XQgDtI7DjZLO_7Sm9V1XXhWQJHH8GyrUtfIF8BXB8y-z2UkbTeg09wpbnBcw31uHnZ-PMM5mwhyHcvo63KGXoKzTz9Z42QjjtW8QBPsqmwa8bhHIEWo06KTXpgZrEJ50hZaS8Qo-9NIMtO8nFEDC8_i45vEx4ZsA0hg6j4cuIC_4fH93e3cFH3kcXFy30skr75FiWiMYJRXKo-7gQbBr2WGjDQoWUC7vr29kqf424A3cbF_x1_-By19w-wfMCT4KM1xCCNYhtbrqBIMYwvAtZKuppcLspIOHLF6mUZ4HwPk6ieKM6kpSHm0o83WSR8kqgGy5iXj6yALWomulrmiCp2kmgp1bLlhBxx3VMVU20jvZe_tlMCUrvOsxYM72tWLFXjYdWf2hkh5vtaydbF_oQZpv1rb_vHpXaW_dC2ysrJDME_PDYVJSrTtPAS9amnjvGsLK-0NXLBbTdVTTBPpdVNp20elq0oJ62mSLjGe55Clm61Su0rQqd8km3_Nlsq_WccIlG8eA4Tn-p4tsz-odfwBIt9yD?type=png)](https://mermaid.live/edit#pako:eNptktuK2zAQhl9lEIS01HZsOXEcXxT20NKFtgQKW-hqLxR7YglsKcjyNt7gd-84abcHKhBoPmk0p__ESlshK1gYhsKU1ux1XQgDtI7DjZLO_7Sm9V1XXhWQJHH8GyrUtfIF8BXB8y-z2UkbTeg09wpbnBcw31uHnZ-PMM5mwhyHcvo63KGXoKzTz9Z42QjjtW8QBPsqmwa8bhHIEWo06KTXpgZrEJ50hZaS8Qo-9NIMtO8nFEDC8_i45vEx4ZsA0hg6j4cuIC_4fH93e3cFH3kcXFy30skr75FiWiMYJRXKo-7gQbBr2WGjDQoWUC7vr29kqf424A3cbF_x1_-By19w-wfMCT4KM1xCCNYhtbrqBIMYwvAtZKuppcLspIOHLF6mUZ4HwPk6ieKM6kpSHm0o83WSR8kqgGy5iXj6yALWomulrmiCp2kmgp1bLlhBxx3VMVU20jvZe_tlMCUrvOsxYM72tWLFXjYdWf2hkh5vtaydbF_oQZpv1rb_vHpXaW_dC2ysrJDME_PDYVJSrTtPAS9amnjvGsLK-0NXLBbTdVTTBPpdVNp20elq0oJ62mSLjGe55Clm61Su0rQqd8km3_Nlsq_WccIlG8eA4Tn-p4tsz-odfwBIt9yD)
+[![](https://mermaid.ink/img/pako:eNptktuK2zAQhl9lEIS01HZsOXESXxT20NKFtgQKW-hqLxR7YgtsKcjjbbwh795x0m4PVCDQfNJoTv9RFK5EkYswDJUtnN2ZKlcWeB2Gm1p7-mmN67spqc4hSeL4N6zRVDXlIBcMz79MJkdjDaPjlGpscZrDdOc8djQ9wWkyUfYwFOPX4RZJQ-28eXaWdKMsGWoQlPiqmwbItAjsCBVa9JqMrcBZhCdTouNkqIYPvbYD7_sRBZDIVXxYyviQyHUAaQwd4b4L2As-39_d3l3BRxkHF9eN9vqKCDmms0pwUqE-mA4elLjWHTbGohIB5_L--kYX9d8GvIGbzSv5-j9w_gtu_oArho_KDpcQSnTIrS47JSCGMHwL83hsqbJb7eEhzWQWpWkAUi6TKM64riSV0ZozXyarKFkEkM3XkUwfRSBa9K02JU_wOM5EiXPLlcj5uOU6xspO_E735L4MthA5-R4D4V1f1SLf6aZjq9-XmvDW6Mrr9oXutf3mXPvPq3elIedfYON0iWweBQ37UUmV6YgDXrQ08t43jGuifZfPZuN1VPEE-m1UuHbWmXLUQv20zmZc-ErLFLNlqhdpWhbbZL3ayXmyK5dxIrU4nQKB5_ifLrI9q_f0AzkD3HY?type=png)](https://mermaid.live/edit#pako:eNptktuK2zAQhl9lEIS01HZsOXESXxT20NKFtgQKW-hqLxR7YgtsKcjjbbwh795x0m4PVCDQfNJoTv9RFK5EkYswDJUtnN2ZKlcWeB2Gm1p7-mmN67spqc4hSeL4N6zRVDXlIBcMz79MJkdjDaPjlGpscZrDdOc8djQ9wWkyUfYwFOPX4RZJQ-28eXaWdKMsGWoQlPiqmwbItAjsCBVa9JqMrcBZhCdTouNkqIYPvbYD7_sRBZDIVXxYyviQyHUAaQwd4b4L2As-39_d3l3BRxkHF9eN9vqKCDmms0pwUqE-mA4elLjWHTbGohIB5_L--kYX9d8GvIGbzSv5-j9w_gtu_oArho_KDpcQSnTIrS47JSCGMHwL83hsqbJb7eEhzWQWpWkAUi6TKM64riSV0ZozXyarKFkEkM3XkUwfRSBa9K02JU_wOM5EiXPLlcj5uOU6xspO_E735L4MthA5-R4D4V1f1SLf6aZjq9-XmvDW6Mrr9oXutf3mXPvPq3elIedfYON0iWweBQ37UUmV6YgDXrQ08t43jGuifZfPZuN1VPEE-m1UuHbWmXLUQv20zmZc-ErLFLNlqhdpWhbbZL3ayXmyK5dxIrU4nQKB5_ifLrI9q_f0AzkD3HY)
 
 ## Introduction
 
@@ -93,7 +93,7 @@ Here, we only want it to cut the text conditions to avoid OOM errors.
 If you still experience OOM errors, you can try calling `pipe.enable_model_cpu_offload()` after calling `apply_cache_on_pipe`.
 
 This is our base line.
-On one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 6043.88 seconds.
+On one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 3626.33 seconds.
 
 ## Apply First Block Cache on HunyuanVideo
 
@@ -104,7 +104,7 @@ And [AdaCache](https://adacache-dit.github.io) also shows that caching can contr
 However, TeaCache is still a bit complex as it needs a rescaling strategy to ensure the accuracy of the cache.
 In ParaAttention, we find that we can directly use **the residual difference of the first transformer block output** to approximate the difference among model outputs.
 When the difference is small enough, we can reuse the residual difference of previous inference steps, meaning that we in fact skip this denoising step.
-This has been proved to be effective in our experiments and we achieve a 1.5x-3x speedup on HunyuanVideo inference with very good quality.
+This has been proved to be effective in our experiments and we can achieve an up to 2x speedup on HunyuanVideo inference with very good quality.
 
 <figure>
     <img src="https://adacache-dit.github.io/clarity/images/adacache.png" alt="Cache in Diffusion Transformer" />
@@ -126,7 +126,7 @@ https://github.com/user-attachments/assets/883d771a-e74e-4081-aa2a-416985d6c713
 https://github.com/user-attachments/assets/f77c2f58-2b59-4dd1-a06a-a36974cb1e40
 
 We observe that the first block cache is very effective in speeding up the inference, and maintaining nearly no quality loss in the generated video.
-Now, on one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 2271.06 seconds. This is a 2.66x speedup compared to the base line.
+Now, on one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 2271.06 seconds. This is a 1.59x speedup compared to the base line.
 
 ## Quantize the model into FP8
 
@@ -311,14 +311,14 @@ We save the above code to `run_hunyuan_video.py` and run it with `torchrun`:
 torchrun --nproc_per_node=8 run_hunyuan_video.py
 ```
 
-With 8 NVIDIA L20 GPUs, we can generate 129 frames with 720p resolution in 30 inference steps in 649.23 seconds. This is a 9.31x speedup compared to the base line!
+With 8 NVIDIA L20 GPUs, we can generate 129 frames with 720p resolution in 30 inference steps in 649.23 seconds. This is a 5.58x speedup compared to the base line!
 
 ## Conclusion
 
 | GPU Type | Number of GPUs | Optimizations | Inference Time (s) | Speedup |
 | - | - | - | - | - |
-| NVIDIA L20 | 1 | Baseline | 6043.88 | 1x |
-| NVIDIA L20 | 1 | FBCache | 2271.06 | 2.66x |
-| NVIDIA L20 | 2 | FBCache + CP | 1132.90 | 5.33x |
-| NVIDIA L20 | 4 | FBCache + CP | 718.15 | 8.42x |
-| NVIDIA L20 | 8 | FBCache + CP | 649.23 | 9.31x |
+| NVIDIA L20 | 1 | Baseline | 3626.33 | 1x |
+| NVIDIA L20 | 1 | FBCache | 2271.06 | 1.59x |
+| NVIDIA L20 | 2 | FBCache + CP | 1132.90 | 3.20x |
+| NVIDIA L20 | 4 | FBCache + CP | 718.15 | 5.05x |
+| NVIDIA L20 | 8 | FBCache + CP | 649.23 | 5.58x |
