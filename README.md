@@ -46,10 +46,10 @@ This can significantly reduce the computation cost of the model, achieving a spe
 
 | Model | Optimizations | Preview |
 | - | - | - |
-| HunyuanVideo | Original | [Original](https://github.com/user-attachments/assets/883d771a-e74e-4081-aa2a-416985d6c713) |
-| HunyuanVideo | FBCache | [FBCache](https://github.com/user-attachments/assets/f77c2f58-2b59-4dd1-a06a-a36974cb1e40) |
 | FLUX.1-dev | Original | [Original](./assets/flux_original.png) |
 | FLUX.1-dev | FBCache | [FBCache](./assets/flux_fbc.png) |
+| HunyuanVideo | Original | [Original](https://github.com/user-attachments/assets/883d771a-e74e-4081-aa2a-416985d6c713) |
+| HunyuanVideo | FBCache | [FBCache](https://github.com/user-attachments/assets/f77c2f58-2b59-4dd1-a06a-a36974cb1e40) |
 
 You only need to call a single function to enable First Block Cache on your `diffusers` pipeline:
 
@@ -78,7 +78,7 @@ For example, to run FLUX with 2 GPUs:
 torchrun --nproc_per_node=2 parallel_examples/run_flux.py
 ```
 
-- [FLUX](parallel_examples/run_flux.py)
+- [FLUX🚀](parallel_examples/run_flux.py)
 - [HunyuanVideo🚀](parallel_examples/run_hunyuan_video.py)
 - [Mochi](parallel_examples/run_mochi.py)
 - [CogVideoX](parallel_examples/run_cogvideox.py)
@@ -91,6 +91,7 @@ You can also run the following examples with a single GPU and enable the First B
 python3 first_block_cache_examples/run_hunyuan_video.py
 ```
 
+- [FLUX🚀](first_block_cache_examples/run_flux.py)
 - [HunyuanVideo🚀](first_block_cache_examples/run_hunyuan_video.py)
 - [Mochi](first_block_cache_examples/run_mochi.py)
 - [CogVideoX](first_block_cache_examples/run_cogvideox.py)
