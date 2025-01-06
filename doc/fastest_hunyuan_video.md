@@ -93,7 +93,7 @@ Here, we only want it to cut the text conditions to avoid OOM errors.
 If you still experience OOM errors, you can try calling `pipe.enable_model_cpu_offload()` after calling `apply_cache_on_pipe`.
 
 This is our base line.
-On one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 3626.33 seconds.
+On one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 3675.71 seconds.
 
 ## Apply First Block Cache on HunyuanVideo
 
@@ -126,7 +126,7 @@ https://github.com/user-attachments/assets/883d771a-e74e-4081-aa2a-416985d6c713
 https://github.com/user-attachments/assets/f77c2f58-2b59-4dd1-a06a-a36974cb1e40
 
 We observe that the first block cache is very effective in speeding up the inference, and maintaining nearly no quality loss in the generated video.
-Now, on one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 2271.06 seconds. This is a 1.59x speedup compared to the base line.
+Now, on one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 2271.06 seconds. This is a 1.62x speedup compared to the base line.
 
 ## Quantize the model into FP8
 
@@ -311,14 +311,14 @@ We save the above code to `run_hunyuan_video.py` and run it with `torchrun`:
 torchrun --nproc_per_node=8 run_hunyuan_video.py
 ```
 
-With 8 NVIDIA L20 GPUs, we can generate 129 frames with 720p resolution in 30 inference steps in 649.23 seconds. This is a 5.58x speedup compared to the base line!
+With 8 NVIDIA L20 GPUs, we can generate 129 frames with 720p resolution in 30 inference steps in 649.23 seconds. This is a 5.66x speedup compared to the base line!
 
 ## Conclusion
 
 | GPU Type | Number of GPUs | Optimizations | Wall Time (s) | Speedup |
 | - | - | - | - | - |
-| NVIDIA L20 | 1 | Baseline | 3626.33 | 1x |
-| NVIDIA L20 | 1 | FBCache | 2271.06 | 1.59x |
-| NVIDIA L20 | 2 | FBCache + CP | 1132.90 | 3.20x |
-| NVIDIA L20 | 4 | FBCache + CP | 718.15 | 5.05x |
-| NVIDIA L20 | 8 | FBCache + CP | 649.23 | 5.58x |
+| NVIDIA L20 | 1 | Baseline | 3675.71 | 1x |
+| NVIDIA L20 | 1 | FBCache | 2271.06 | 1.62x |
+| NVIDIA L20 | 2 | FBCache + CP | 1132.90 | 3.24x |
+| NVIDIA L20 | 4 | FBCache + CP | 718.15 | 5.12x |
+| NVIDIA L20 | 8 | FBCache + CP | 649.23 | 5.66x |
