@@ -1,6 +1,6 @@
 # Fastest FLUX.1-dev Inference with Context Parallelism and First Block Cache on NVIDIA L20 GPUs
 
-[![](https://mermaid.ink/img/pako:eNqNUltr2zAU_isHQcjKbMeXxEkMG7TJCoVuZIxdWNUHxT6xBbYU5OM2WfB_33FSOhh7mB4knU-fzvU7idwWKDLh-740uTU7XWbSAK_DcVUpRy_WsJ51QVUGURSGf8AKdVlRBvGMwbOX0eikjWboNKYKGxxnMN5Zhy2Ne-hHI2kOx3xw7W-RFFTW6V_WkKqlIU01ghTfVV0D6QaBP0KJBp0ibUqwBkE3qkROhiq4vf_6I4j8Ap88iMJ4ehg2D-IFtIT71mM-fPp2t767hvs49C6fNsqpayLkaNZIwen46qBbeJDiRrVYa4NSeJzF7c1K5RXCG1fQuzAIZ1cv-GYB68__5iyu4C38J4Evq40Uj9IcLxlI0SLPoGilgBB8_z0k3FRptsrBQ5wGScplzoMw4iMJplzQPJgxNg2W8aPwRIOuUbrgcZ6GAUlx7r8UGV-3XNpQbM881ZH9cjS5yMh16Alnu7IS2U7VLVvdvlCEa61Kp5pXdK_MT2ubv1gfCk3WvYK1VQWyeRJ03A-yKnVLHPAirAHvXM1wRbRvs8lkeA5KHkq3DXLbTFpdDMKonpbpJI3ThYoTTOeJmiVJkW-j5WIXT6NdMQ-jWIm-9wSe43-8aPgs5f43kDDegw?type=png)](https://mermaid.live/edit#pako:eNqNUltr2zAU_isHQcjKbMeXxEkMG7TJCoVuZIxdWNUHxT6xBbYU5OM2WfB_33FSOhh7mB4knU-fzvU7idwWKDLh-740uTU7XWbSAK_DcVUpRy_WsJ51QVUGURSGf8AKdVlRBvGMwbOX0eikjWboNKYKGxxnMN5Zhy2Ne-hHI2kOx3xw7W-RFFTW6V_WkKqlIU01ghTfVV0D6QaBP0KJBp0ibUqwBkE3qkROhiq4vf_6I4j8Ap88iMJ4ehg2D-IFtIT71mM-fPp2t767hvs49C6fNsqpayLkaNZIwen46qBbeJDiRrVYa4NSeJzF7c1K5RXCG1fQuzAIZ1cv-GYB68__5iyu4C38J4Evq40Uj9IcLxlI0SLPoGilgBB8_z0k3FRptsrBQ5wGScplzoMw4iMJplzQPJgxNg2W8aPwRIOuUbrgcZ6GAUlx7r8UGV-3XNpQbM881ZH9cjS5yMh16Alnu7IS2U7VLVvdvlCEa61Kp5pXdK_MT2ubv1gfCk3WvYK1VQWyeRJ03A-yKnVLHPAirAHvXM1wRbRvs8lkeA5KHkq3DXLbTFpdDMKonpbpJI3ThYoTTOeJmiVJkW-j5WIXT6NdMQ-jWIm-9wSe43-8aPgs5f43kDDegw)
+[![](https://mermaid.ink/img/pako:eNqNUm1r2zAQ_iuHIKRhtuOXxEkMG7TJCoVuZIy9sKofFPtiC2wpyJc2WfB_3zkpHYx9qD5IukePdKd7npPIbYEiE77vS5Nbs9VlJg3wOByXlXL0EvXjWRdUZRBFYfgXrFCXFWUQTxk8vzIYnLTRDJ2GVGGDwwyGW-uwpWEH3WAgzeGY90_7GyQFlXX6tzWkamlIU40gxQ9V10C6QeCLUKJBp0ibEqxB0I0qkYuhCm7vv_0MIr_AJw-iMJ4c-smDeA4t4a71mA-fv9-t7q7hPg69y6W1cuqaCDmbNVJwOb466BYepLhRLdbaoBQeV3F7s1R5hVeuoPdhEE5HL_B6Dqsv_6XMR_AO3nbOm-X6Kh69jTdh3qM0x0ulUrTIWhWtFBCC73-AhJsvzUY5eIjTIEm5HbMgjHhJggl_fBZMGZsEi9iDJFiEj8ITDbpG6YLFP_VySnFWS4qMtxtuRN-ajnlqT_br0eQiI7dHTzi7LyuRbVXdcrTfFYpwpVXpVPOK7pT5ZW3zD-tjocm6V7C2qkAOT4KOu96EpW6JE15s2ON7VzNcEe3abDzuj4OSJdxvgtw241YXvY2qp0U6TuN0ruIE01mipklS5JtoMd_Gk2hbzMIoVqLrPIHn_J8ujj8bv_sDFqrpbw?type=png)](https://mermaid.live/edit#pako:eNqNUm1r2zAQ_iuHIKRhtuOXxEkMG7TJCoVuZIy9sKofFPtiC2wpyJc2WfB_3zkpHYx9qD5IukePdKd7npPIbYEiE77vS5Nbs9VlJg3wOByXlXL0EvXjWRdUZRBFYfgXrFCXFWUQTxk8vzIYnLTRDJ2GVGGDwwyGW-uwpWEH3WAgzeGY90_7GyQFlXX6tzWkamlIU40gxQ9V10C6QeCLUKJBp0ibEqxB0I0qkYuhCm7vv_0MIr_AJw-iMJ4c-smDeA4t4a71mA-fv9-t7q7hPg69y6W1cuqaCDmbNVJwOb466BYepLhRLdbaoBQeV3F7s1R5hVeuoPdhEE5HL_B6Dqsv_6XMR_AO3nbOm-X6Kh69jTdh3qM0x0ulUrTIWhWtFBCC73-AhJsvzUY5eIjTIEm5HbMgjHhJggl_fBZMGZsEi9iDJFiEj8ITDbpG6YLFP_VySnFWS4qMtxtuRN-ajnlqT_br0eQiI7dHTzi7LyuRbVXdcrTfFYpwpVXpVPOK7pT5ZW3zD-tjocm6V7C2qkAOT4KOu96EpW6JE15s2ON7VzNcEe3abDzuj4OSJdxvgtw241YXvY2qp0U6TuN0ruIE01mipklS5JtoMd_Gk2hbzMIoVqLrPIHn_J8ujj8bv_sDFqrpbw)
 
 ## Introduction
 
@@ -271,6 +271,7 @@ torchrun --nproc_per_node=2 run_flux.py
 ```
 
 With 2 NVIDIA L20 GPUs, we can generate 1 image with 1024x1024 resolution in 28 inference steps in 8.20 seconds, which is a 3.21x speedup compared to the baseline.
+And with 4 NVIDIA L20 GPUs, we can generate 1 image with 1024x1024 resolution in 28 inference steps in 3.90 seconds, which is a 6.75x speedup compared to the baseline.
 
 ## Conclusion
 
@@ -281,3 +282,4 @@ With 2 NVIDIA L20 GPUs, we can generate 1 image with 1024x1024 resolution in 28 
 | NVIDIA L20 | 1 | FP8 DQ | 13.40 | 1.96x |
 | NVIDIA L20 | 1 | FBCache (rdt=0.08) + FP8 DQ | 7.56 | 3.48x |
 | NVIDIA L20 | 2 | FBCache (rdt=0.08) + FP8 DQ + CP | 4.92 | 5.35x |
+| NVIDIA L20 | 4 | FBCache (rdt=0.08) + FP8 DQ + CP | 3.90 | 6.75x |
