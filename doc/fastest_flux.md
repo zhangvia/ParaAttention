@@ -103,6 +103,7 @@ image.save("flux.png")
 ```
 
 | Optimizations | Original | FBCache rdt=0.04 | FBCache rdt=0.05 | FBCache rdt=0.06 | FBCache rdt=0.07 |
+| - | - | - | - | - | - |
 | Preview | ![Original](../assets/flux_original.png) | ![FBCache rdt=0.04](../assets/flux_fbc_0.04.png) | ![FBCache rdt=0.05](../assets/flux_fbc.png) | ![FBCache rdt=0.06](../assets/flux_fbc_0.06.png) | ![FBCache rdt=0.07](../assets/flux_fbc_0.07.png) |
 | Wall Time (s) | 26.36 | 21.83 | 17.01 | 16.00 | 13.78 |
 
