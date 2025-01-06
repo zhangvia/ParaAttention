@@ -92,7 +92,7 @@ We pass `residual_diff_threshold=0.0` to `apply_cache_on_pipe` to disable the ca
 Here, we only want it to cut the text conditions to avoid OOM errors.
 If you still experience OOM errors, you can try calling `pipe.enable_model_cpu_offload()` after calling `apply_cache_on_pipe`.
 
-This is our base line.
+This is our baseline.
 On one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 3675.71 seconds.
 
 ## Apply First Block Cache on HunyuanVideo
@@ -126,7 +126,7 @@ https://github.com/user-attachments/assets/883d771a-e74e-4081-aa2a-416985d6c713
 https://github.com/user-attachments/assets/f77c2f58-2b59-4dd1-a06a-a36974cb1e40
 
 We observe that the first block cache is very effective in speeding up the inference, and maintaining nearly no quality loss in the generated video.
-Now, on one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 2271.06 seconds. This is a 1.62x speedup compared to the base line.
+Now, on one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 2271.06 seconds. This is a 1.62x speedup compared to the baseline.
 
 ## Quantize the model into FP8
 
@@ -311,7 +311,7 @@ We save the above code to `run_hunyuan_video.py` and run it with `torchrun`:
 torchrun --nproc_per_node=8 run_hunyuan_video.py
 ```
 
-With 8 NVIDIA L20 GPUs, we can generate 129 frames with 720p resolution in 30 inference steps in 649.23 seconds. This is a 5.66x speedup compared to the base line!
+With 8 NVIDIA L20 GPUs, we can generate 129 frames with 720p resolution in 30 inference steps in 649.23 seconds. This is a 5.66x speedup compared to the baseline!
 
 ## Conclusion
 
