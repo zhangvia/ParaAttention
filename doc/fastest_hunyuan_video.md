@@ -11,7 +11,7 @@ However, the inference speed of these models is still a bottleneck for real-time
 In this article, we will use [ParaAttention](https://github.com/chengzeyi/ParaAttention), a library implements **Context Parallelism** and **First Block Cache**, as well as other techniques like `torch.compile` and **FP8 Dynamic Quantization**, to achieve the fastest inference speed for HunyuanVideo.
 If you want to speed up other models like `CogVideoX`, `Mochi` or `FLUX`, you can also follow the same steps in this article.
 
-**We set up our experiments on NVIDIA L20 GPUs, which only has PCIe support.**
+**We set up our experiments on NVIDIA L20 GPUs, which only have PCIe support.**
 **If you have NVIDIA A100 or H100 GPUs with NVLink support, you can achieve a better speedup with context parallelism, especially when the number of GPUs is large.**
 
 ## HunyuanVideo Inference with `diffusers`
