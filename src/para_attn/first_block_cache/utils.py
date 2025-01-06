@@ -173,7 +173,6 @@ class CachedTransformerBlocks(torch.nn.Module):
                 hidden_states, encoder_hidden_states
             )
         else:
-
             (
                 hidden_states,
                 encoder_hidden_states,

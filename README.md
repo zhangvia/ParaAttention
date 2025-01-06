@@ -1,11 +1,14 @@
 # ParaAttention
 
+[![](https://mermaid.ink/img/pako:eNqNUltr2zAU_isHQcjKbMeXxEkMG7TJCoVuZIxdWNUHxT6xBbYU5OM2WfB_33FSOhh7mB4knU-fzvU7idwWKDLh-740uTU7XWbSAK_DcVUpRy_WsJ51QVUGURSGf8AKdVlRBvGMwbOX0eikjWboNKYKGxxnMN5Zhy2Ne-hHI2kOx3xw7W-RFFTW6V_WkKqlIU01ghTfVV0D6QaBP0KJBp0ibUqwBkE3qkROhiq4vf_6I4j8Ap88iMJ4ehg2D-IFtIT71mM-fPp2t767hvs49C6fNsqpayLkaNZIwen46qBbeJDiRrVYa4NSeJzF7c1K5RXCG1fQuzAIZ1cv-GYB68__5iyu4C38J4Evq40Uj9IcLxlI0SLPoGilgBB8_z0k3FRptsrBQ5wGScplzoMw4iMJplzQPJgxNg2W8aPwRIOuUbrgcZ6GAUlx7r8UGV-3XNpQbM881ZH9cjS5yMh16Alnu7IS2U7VLVvdvlCEa61Kp5pXdK_MT2ubv1gfCk3WvYK1VQWyeRJ03A-yKnVLHPAirAHvXM1wRbRvs8lkeA5KHkq3DXLbTFpdDMKonpbpJI3ThYoTTOeJmiVJkW-j5WIXT6NdMQ-jWIm-9wSe43-8aPgs5f43kDDegw?type=png)](https://mermaid.live/edit#pako:eNqNUltr2zAU_isHQcjKbMeXxEkMG7TJCoVuZIxdWNUHxT6xBbYU5OM2WfB_33FSOhh7mB4knU-fzvU7idwWKDLh-740uTU7XWbSAK_DcVUpRy_WsJ51QVUGURSGf8AKdVlRBvGMwbOX0eikjWboNKYKGxxnMN5Zhy2Ne-hHI2kOx3xw7W-RFFTW6V_WkKqlIU01ghTfVV0D6QaBP0KJBp0ibUqwBkE3qkROhiq4vf_6I4j8Ap88iMJ4ehg2D-IFtIT71mM-fPp2t767hvs49C6fNsqpayLkaNZIwen46qBbeJDiRrVYa4NSeJzF7c1K5RXCG1fQuzAIZ1cv-GYB68__5iyu4C38J4Evq40Uj9IcLxlI0SLPoGilgBB8_z0k3FRptsrBQ5wGScplzoMw4iMJplzQPJgxNg2W8aPwRIOuUbrgcZ6GAUlx7r8UGV-3XNpQbM881ZH9cjS5yMh16Alnu7IS2U7VLVvdvlCEa61Kp5pXdK_MT2ubv1gfCk3WvYK1VQWyeRJ03A-yKnVLHPAirAHvXM1wRbRvs8lkeA5KHkq3DXLbTFpdDMKonpbpJI3ThYoTTOeJmiVJkW-j5WIXT6NdMQ-jWIm-9wSe43-8aPgs5f43kDDegw)
+
 [![](https://mermaid.ink/img/pako:eNptktuK2zAQhl9lEIS01HZsOXESXxT20NKFtgQKW-hqLxR7YgtsKcjjbbwh795x0m4PVCDQfNJoTv9RFK5EkYswDJUtnN2ZKlcWeB2Gm1p7-mmN67spqc4hSeL4N6zRVDXlIBcMz79MJkdjDaPjlGpscZrDdOc8djQ9wWkyUfYwFOPX4RZJQ-28eXaWdKMsGWoQlPiqmwbItAjsCBVa9JqMrcBZhCdTouNkqIYPvbYD7_sRBZDIVXxYyviQyHUAaQwd4b4L2As-39_d3l3BRxkHF9eN9vqKCDmms0pwUqE-mA4elLjWHTbGohIB5_L--kYX9d8GvIGbzSv5-j9w_gtu_oArho_KDpcQSnTIrS47JSCGMHwL83hsqbJb7eEhzWQWpWkAUi6TKM64riSV0ZozXyarKFkEkM3XkUwfRSBa9K02JU_wOM5EiXPLlcj5uOU6xspO_E735L4MthA5-R4D4V1f1SLf6aZjq9-XmvDW6Mrr9oXutf3mXPvPq3elIedfYON0iWweBQ37UUmV6YgDXrQ08t43jGuifZfPZuN1VPEE-m1UuHbWmXLUQv20zmZc-ErLFLNlqhdpWhbbZL3ayXmyK5dxIrU4nQKB5_ifLrI9q_f0AzkD3HY?type=png)](https://mermaid.live/edit#pako:eNptktuK2zAQhl9lEIS01HZsOXESXxT20NKFtgQKW-hqLxR7YgtsKcjjbbwh795x0m4PVCDQfNJoTv9RFK5EkYswDJUtnN2ZKlcWeB2Gm1p7-mmN67spqc4hSeL4N6zRVDXlIBcMz79MJkdjDaPjlGpscZrDdOc8djQ9wWkyUfYwFOPX4RZJQ-28eXaWdKMsGWoQlPiqmwbItAjsCBVa9JqMrcBZhCdTouNkqIYPvbYD7_sRBZDIVXxYyviQyHUAaQwd4b4L2As-39_d3l3BRxkHF9eN9vqKCDmms0pwUqE-mA4elLjWHTbGohIB5_L--kYX9d8GvIGbzSv5-j9w_gtu_oArho_KDpcQSnTIrS47JSCGMHwL83hsqbJb7eEhzWQWpWkAUi6TKM64riSV0ZozXyarKFkEkM3XkUwfRSBa9K02JU_wOM5EiXPLlcj5uOU6xspO_E735L4MthA5-R4D4V1f1SLf6aZjq9-XmvDW6Mrr9oXutf3mXPvPq3elIedfYON0iWweBQ37UUmV6YgDXrQ08t43jGuifZfPZuN1VPEE-m1UuHbWmXLUQv20zmZc-ErLFLNlqhdpWhbbZL3ayXmyK5dxIrU4nQKB5_ifLrI9q_f0AzkD3HY)
 
 Context parallel attention that accelerates DiT model inference with dynamic caching,
 supporting both [**Ulysses Style**](https://arxiv.org/abs/2309.14509) and [**Ring Style**](https://arxiv.org/abs/2310.01889) parallelism.
 
-🔥[Fastest HunyuanVideo Inference with Context Parallelism and First Block Cache on NVIDIA L20 GPUs](doc/fastest_hunyuan_video.md)🔥
+🔥[Fastest FLUX.1-dev Inference with Context Parallelism and First Block Cache on NVIDIA L20 GPUs](./doc/fastest_flux.md)🔥
+🔥[Fastest HunyuanVideo Inference with Context Parallelism and First Block Cache on NVIDIA L20 GPUs](./doc/fastest_hunyuan_video.md)🔥
 
 This aims to provide:
 
@@ -62,6 +65,9 @@ apply_cache_on_pipe(
 )
 ```
 
+Adjust the `residual_diff_threshold` to balance the speedup and the accuracy.
+Higher `residual_diff_threshold` will lead to more cache hits and higher speedup, but might also lead to a higher accuracy drop.
+
 # Officially Supported Models
 
 ## Context Parallelism with First Block Cache
@@ -71,7 +77,7 @@ You can modify the code to enable `torch.compile` to further accelerate the mode
 If you want quantization, please refer to [diffusers-torchao](https://github.com/sayakpaul/diffusers-torchao) for more information.
 For example, to run FLUX with 2 GPUs:
 
-**NOTE**: To measure the performance correctly with `torch.compile`, you need to warm up the model by running it for a few iterations before measuring the performance.
+**Note**: To measure the performance correctly with `torch.compile`, you need to warm up the model by running it for a few iterations before measuring the performance.
 
 ```bash
 # Use --nproc_per_node to specify the number of GPUs

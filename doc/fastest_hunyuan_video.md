@@ -90,7 +90,7 @@ apply_cache_on_pipe(pipe, residual_diff_threshold=0.0)
 
 We pass `residual_diff_threshold=0.0` to `apply_cache_on_pipe` to disable the cache mechanism now, because we will enable it later.
 Here, we only want it to cut the text conditions to avoid OOM errors.
-If you still experience OOM errors, you can try calling `pipe.enable_model_cpu_offload()` after calling `apply_cache_on_pipe`.
+If you still experience OOM errors, you can try calling `pipe.enable_model_cpu_offload()` or `pipe.enable_sequential_cpu_offload` after calling `apply_cache_on_pipe`.
 
 This is our baseline.
 On one single NVIDIA L20 GPU, we can generate 129 frames with 720p resolution in 30 inference steps in 3675.71 seconds.
@@ -148,6 +148,8 @@ The compilation process could take a long time, but it is worth it.
 If you are not familiar with `torch.compile`, you can refer to the [official tutorial](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html).
 In this example, we only quantize the transformer model, but you can also quantize the text encoder to reduce more memory usage.
 We also need to notice that the actually compilation process is done on the first time the model is called, so we need to warm up the model to measure the speedup correctly.
+
+**Note**: we find that dynamic quantization can significantly change the distribution of the model output, so you might need to tweak the `residual_diff_threshold` to a larger value to make it take effect.
 
 ```python
 import time
@@ -317,7 +319,7 @@ With 8 NVIDIA L20 GPUs, we can generate 129 frames with 720p resolution in 30 in
 
 | GPU Type | Number of GPUs | Optimizations | Wall Time (s) | Speedup |
 | - | - | - | - | - |
-| NVIDIA L20 | 1 | Baseline | 3675.71 | 1x |
+| NVIDIA L20 | 1 | Baseline | 3675.71 | 1.00x |
 | NVIDIA L20 | 1 | FBCache | 2271.06 | 1.62x |
 | NVIDIA L20 | 2 | FBCache + CP | 1132.90 | 3.24x |
 | NVIDIA L20 | 4 | FBCache + CP | 718.15 | 5.12x |
