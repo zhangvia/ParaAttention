@@ -10,7 +10,7 @@ from para_attn.first_block_cache import utils
 def apply_cache_on_transformer(
     transformer: CogVideoXTransformer3DModel,
     *,
-    residual_diff_threshold=0.025,
+    residual_diff_threshold=0.04,
 ):
     cached_transformer_blocks = torch.nn.ModuleList(
         [

@@ -111,10 +111,10 @@ This has been proved to be effective in our experiments and we can achieve an up
     <figcaption>How AdaCache works, First Block Cache is a variant of it</figcaption>
 </figure>
 
-To apply the first block cache on HunyuanVideo, we can call `apply_cache_on_pipe` with `residual_diff_threshold=0.035`, which is the default value for HunyuanVideo.
+To apply the first block cache on HunyuanVideo, we can call `apply_cache_on_pipe` with `residual_diff_threshold=0.06`, which is the default value for HunyuanVideo.
 
 ```python
-apply_cache_on_pipe(pipe, residual_diff_threshold=0.035)
+apply_cache_on_pipe(pipe, residual_diff_threshold=0.06)
 ```
 
 ### HunyuanVideo without FBCache

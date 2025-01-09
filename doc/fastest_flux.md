@@ -1,6 +1,6 @@
 # Fastest FLUX.1-dev Inference with Context Parallelism and First Block Cache on NVIDIA L20 GPUs
 
-[![](https://mermaid.ink/img/pako:eNqNUm1r2zAQ_iuHIKRhtuOXxEkMG7TJCoVuZIy9sKofFPtiC2wpyJc2WfB_3zkpHYx9qD5IukePdKd7npPIbYEiE77vS5Nbs9VlJg3wOByXlXL0EvXjWRdUZRBFYfgXrFCXFWUQTxk8vzIYnLTRDJ2GVGGDwwyGW-uwpWEH3WAgzeGY90_7GyQFlXX6tzWkamlIU40gxQ9V10C6QeCLUKJBp0ibEqxB0I0qkYuhCm7vv_0MIr_AJw-iMJ4c-smDeA4t4a71mA-fv9-t7q7hPg69y6W1cuqaCDmbNVJwOb466BYepLhRLdbaoBQeV3F7s1R5hVeuoPdhEE5HL_B6Dqsv_6XMR_AO3nbOm-X6Kh69jTdh3qM0x0ulUrTIWhWtFBCC73-AhJsvzUY5eIjTIEm5HbMgjHhJggl_fBZMGZsEi9iDJFiEj8ITDbpG6YLFP_VySnFWS4qMtxtuRN-ajnlqT_br0eQiI7dHTzi7LyuRbVXdcrTfFYpwpVXpVPOK7pT5ZW3zD-tjocm6V7C2qkAOT4KOu96EpW6JE15s2ON7VzNcEe3abDzuj4OSJdxvgtw241YXvY2qp0U6TuN0ruIE01mipklS5JtoMd_Gk2hbzMIoVqLrPIHn_J8ujj8bv_sDFqrpbw?type=png)](https://mermaid.live/edit#pako:eNqNUm1r2zAQ_iuHIKRhtuOXxEkMG7TJCoVuZIy9sKofFPtiC2wpyJc2WfB_3zkpHYx9qD5IukePdKd7npPIbYEiE77vS5Nbs9VlJg3wOByXlXL0EvXjWRdUZRBFYfgXrFCXFWUQTxk8vzIYnLTRDJ2GVGGDwwyGW-uwpWEH3WAgzeGY90_7GyQFlXX6tzWkamlIU40gxQ9V10C6QeCLUKJBp0ibEqxB0I0qkYuhCm7vv_0MIr_AJw-iMJ4c-smDeA4t4a71mA-fv9-t7q7hPg69y6W1cuqaCDmbNVJwOb466BYepLhRLdbaoBQeV3F7s1R5hVeuoPdhEE5HL_B6Dqsv_6XMR_AO3nbOm-X6Kh69jTdh3qM0x0ulUrTIWhWtFBCC73-AhJsvzUY5eIjTIEm5HbMgjHhJggl_fBZMGZsEi9iDJFiEj8ITDbpG6YLFP_VySnFWS4qMtxtuRN-ajnlqT_br0eQiI7dHTzi7LyuRbVXdcrTfFYpwpVXpVPOK7pT5ZW3zD-tjocm6V7C2qkAOT4KOu96EpW6JE15s2ON7VzNcEe3abDzuj4OSJdxvgtw241YXvY2qp0U6TuN0ruIE01mipklS5JtoMd_Gk2hbzMIoVqLrPIHn_J8ujj8bv_sDFqrpbw)
+[![](https://mermaid.ink/img/pako:eNqNUu9r2zAQ_VcOQUjDbMeWEycxbNAmKxS6kTH2g1X9oFgXW2BLQVbaZMH_-85J6WDsQ_VB0j096U733okVViHLWRiGwhTWbHWZCwM0DsdlJZ1_ifrxrJWvckiSOP4LVqjLyufApwSeXxkMTtpogk5DX2GDwxyGW-uw9cMOusFAmMOx6J8ON-glVNbp39Z4WQvjta8RBPsh6xq8bhDoIpRo0EmvTQnWIOhGlkjF-Apu77_9jJJQ4VMAScwnh34KgM-h9bhrA-LD5-93q7truOdxcLm0lk5ee4-UzRrBqJxQHnQLD4LdyBZrbVCwgKq4vVnKosIrp_z7OIrnoxd4PYfVl_9REj6Cd_C2c9os11d89DbehHiPwhwvlQrWImmlWsEghjD8ACk1X5iNdPDAsyjNqB2zKE5oSaMJfXwWTQmbRAseQBot4kcWsAZdI7Ui8U-9nIKd1RIsp-2GGtG3piOe3Hv79WgKlnu3x4A5uy8rlm9l3VK03ynpcaVl6WTziu6k-WVt8w_ro9LeulewtlIhhSfmj7vehKVuPSW82LDH964muPJ-1-bjcX8clSThfhMVthm3WvU2qp4W2Tjj2VzyFLNZKqdpqopNsphv-STZqlmccMm6LmB4zv_p4viz8bs_BMbpYw?type=png)](https://mermaid.live/edit#pako:eNqNUu9r2zAQ_VcOQUjDbMeWEycxbNAmKxS6kTH2g1X9oFgXW2BLQVbaZMH_-85J6WDsQ_VB0j096U733okVViHLWRiGwhTWbHWZCwM0DsdlJZ1_ifrxrJWvckiSOP4LVqjLyufApwSeXxkMTtpogk5DX2GDwxyGW-uw9cMOusFAmMOx6J8ON-glVNbp39Z4WQvjta8RBPsh6xq8bhDoIpRo0EmvTQnWIOhGlkjF-Apu77_9jJJQ4VMAScwnh34KgM-h9bhrA-LD5-93q7truOdxcLm0lk5ee4-UzRrBqJxQHnQLD4LdyBZrbVCwgKq4vVnKosIrp_z7OIrnoxd4PYfVl_9REj6Cd_C2c9os11d89DbehHiPwhwvlQrWImmlWsEghjD8ACk1X5iNdPDAsyjNqB2zKE5oSaMJfXwWTQmbRAseQBot4kcWsAZdI7Ui8U-9nIKd1RIsp-2GGtG3piOe3Hv79WgKlnu3x4A5uy8rlm9l3VK03ynpcaVl6WTziu6k-WVt8w_ro9LeulewtlIhhSfmj7vehKVuPSW82LDH964muPJ-1-bjcX8clSThfhMVthm3WvU2qp4W2Tjj2VzyFLNZKqdpqopNsphv-STZqlmccMm6LmB4zv_p4viz8bs_BMbpYw)
 
 ## Introduction
 
@@ -70,7 +70,7 @@ This has been proved to be effective in our experiments and we can achieve an up
     <figcaption>How AdaCache works, First Block Cache is a variant of it</figcaption>
 </figure>
 
-To apply the first block cache on FLUX.1-dev, we can call `apply_cache_on_pipe` with `residual_diff_threshold=0.05`, which is the default value for FLUX models.
+To apply the first block cache on FLUX.1-dev, we can call `apply_cache_on_pipe` with `residual_diff_threshold=0.08`, which is the default value for FLUX models.
 
 ```python
 import time
@@ -84,7 +84,7 @@ pipe = FluxPipeline.from_pretrained(
 
 from para_attn.first_block_cache.diffusers_adapters import apply_cache_on_pipe
 
-apply_cache_on_pipe(pipe, residual_diff_threshold=0.05)
+apply_cache_on_pipe(pipe, residual_diff_threshold=0.08)
 
 # Enable memory savings
 # pipe.enable_model_cpu_offload()
@@ -102,9 +102,9 @@ print("Saving image to flux.png")
 image.save("flux.png")
 ```
 
-| Optimizations | Original | FBCache rdt=0.04 | FBCache rdt=0.05 | FBCache rdt=0.06 | FBCache rdt=0.07 |
+| Optimizations | Original | FBCache rdt=0.06 | FBCache rdt=0.08 | FBCache rdt=0.10 | FBCache rdt=0.12 |
 | - | - | - | - | - | - |
-| Preview | ![Original](../assets/flux_original.png) | ![FBCache rdt=0.04](../assets/flux_fbc_0.04.png) | ![FBCache rdt=0.05](../assets/flux_fbc.png) | ![FBCache rdt=0.06](../assets/flux_fbc_0.06.png) | ![FBCache rdt=0.07](../assets/flux_fbc_0.07.png) |
+| Preview | ![Original](../assets/flux_original.png) | ![FBCache rdt=0.06](../assets/flux_fbc_0.06.png) | ![FBCache rdt=0.08](../assets/flux_fbc.png) | ![FBCache rdt=0.10](../assets/flux_fbc_0.10.png) | ![FBCache rdt=0.12](../assets/flux_fbc_0.12.png) |
 | Wall Time (s) | 26.36 | 21.83 | 17.01 | 16.00 | 13.78 |
 
 We observe that the first block cache is very effective in speeding up the inference, and maintaining nearly no quality loss in the generated image.
@@ -147,7 +147,7 @@ from para_attn.first_block_cache.diffusers_adapters import apply_cache_on_pipe
 
 apply_cache_on_pipe(
     pipe,
-    residual_diff_threshold=0.08,  # Use a larger value to make the cache take effect
+    residual_diff_threshold=0.12,  # Use a larger value to make the cache take effect
 )
 
 from torchao.quantization import quantize_, float8_dynamic_activation_float8_weight, float8_weight_only
@@ -226,7 +226,7 @@ from para_attn.first_block_cache.diffusers_adapters import apply_cache_on_pipe
 
 apply_cache_on_pipe(
     pipe,
-    residual_diff_threshold=0.08,  # Use a larger value to make the cache take effect
+    residual_diff_threshold=0.12,  # Use a larger value to make the cache take effect
 )
 
 from torchao.quantization import quantize_, float8_dynamic_activation_float8_weight, float8_weight_only
@@ -278,8 +278,8 @@ And with 4 NVIDIA L20 GPUs, we can generate 1 image with 1024x1024 resolution in
 | GPU Type | Number of GPUs | Optimizations | Wall Time (s) | Speedup |
 | - | - | - | - | - |
 | NVIDIA L20 | 1 | Baseline | 26.36 | 1.00x |
-| NVIDIA L20 | 1 | FBCache (rdt=0.05) | 17.01 | 1.55x |
+| NVIDIA L20 | 1 | FBCache (rdt=0.08) | 17.01 | 1.55x |
 | NVIDIA L20 | 1 | FP8 DQ | 13.40 | 1.96x |
-| NVIDIA L20 | 1 | FBCache (rdt=0.08) + FP8 DQ | 7.56 | 3.48x |
-| NVIDIA L20 | 2 | FBCache (rdt=0.08) + FP8 DQ + CP | 4.92 | 5.35x |
-| NVIDIA L20 | 4 | FBCache (rdt=0.08) + FP8 DQ + CP | 3.90 | 6.75x |
+| NVIDIA L20 | 1 | FBCache (rdt=0.12) + FP8 DQ | 7.56 | 3.48x |
+| NVIDIA L20 | 2 | FBCache (rdt=0.12) + FP8 DQ + CP | 4.92 | 5.35x |
+| NVIDIA L20 | 4 | FBCache (rdt=0.12) + FP8 DQ + CP | 3.90 | 6.75x |

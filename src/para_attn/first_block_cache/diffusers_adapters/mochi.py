@@ -10,7 +10,7 @@ from para_attn.first_block_cache import utils
 def apply_cache_on_transformer(
     transformer: MochiTransformer3DModel,
     *,
-    residual_diff_threshold=0.035,
+    residual_diff_threshold=0.06,
 ):
     cached_transformer_blocks = torch.nn.ModuleList(
         [
