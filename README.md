@@ -48,10 +48,17 @@ Inspired by [TeaCache](https://github.com/ali-vilab/TeaCache) and other denoisin
 If the difference between the current and the previous residual output of the first transformer block is small enough, we can reuse the previous final residual output and skip the computation of all the following transformer blocks.
 This can significantly reduce the computation cost of the model, achieving a speedup of up to 2x while maintaining high accuracy.
 
+#### Optimizations for FLUX Image Generation Model on a Single NVIDIA L20 GPU
+
+| Optimizations | Original | FBCache rdt=0.06 | FBCache rdt=0.08 | FBCache rdt=0.10 | FBCache rdt=0.12 |
+| - | - | - | - | - | - |
+| Preview | ![Original](./assets/flux_original.png) | ![FBCache rdt=0.06](./assets/flux_fbc_0.06.png) | ![FBCache rdt=0.08](./assets/flux_fbc_0.08.png) | ![FBCache rdt=0.10](./assets/flux_fbc_0.10.png) | ![FBCache rdt=0.12](./assets/flux_fbc_0.12.png) |
+| Wall Time (s) | 26.36 | 21.83 | 17.01 | 16.00 | 13.78 |
+
+#### Optimizations for Video Models
+
 | Model | Optimizations | Preview |
 | - | - | - |
-| FLUX.1-dev | Original | [Original](./assets/flux_original.png) |
-| FLUX.1-dev | FBCache | [FBCache](./assets/flux_fbc.png) |
 | HunyuanVideo | Original | [Original](https://github.com/user-attachments/assets/883d771a-e74e-4081-aa2a-416985d6c713) |
 | HunyuanVideo | FBCache | [FBCache](https://github.com/user-attachments/assets/f77c2f58-2b59-4dd1-a06a-a36974cb1e40) |
 

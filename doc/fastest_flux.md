@@ -104,7 +104,7 @@ image.save("flux.png")
 
 | Optimizations | Original | FBCache rdt=0.06 | FBCache rdt=0.08 | FBCache rdt=0.10 | FBCache rdt=0.12 |
 | - | - | - | - | - | - |
-| Preview | ![Original](../assets/flux_original.png) | ![FBCache rdt=0.06](../assets/flux_fbc_0.06.png) | ![FBCache rdt=0.08](../assets/flux_fbc.png) | ![FBCache rdt=0.10](../assets/flux_fbc_0.10.png) | ![FBCache rdt=0.12](../assets/flux_fbc_0.12.png) |
+| Preview | ![Original](../assets/flux_original.png) | ![FBCache rdt=0.06](../assets/flux_fbc_0.06.png) | ![FBCache rdt=0.08](../assets/flux_fbc_0.08.png) | ![FBCache rdt=0.10](../assets/flux_fbc_0.10.png) | ![FBCache rdt=0.12](../assets/flux_fbc_0.12.png) |
 | Wall Time (s) | 26.36 | 21.83 | 17.01 | 16.00 | 13.78 |
 
 We observe that the first block cache is very effective in speeding up the inference, and maintaining nearly no quality loss in the generated image.
