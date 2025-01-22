@@ -44,7 +44,7 @@ setup(
     extras_require={
         # optional dependencies, required by some features
         "all": [],
-        # dev dependencies. Install them by `pip3 install 'akvattn[dev]'`
+        # dev dependencies. Install them by `pip3 install 'para-attn[dev]'`
         "dev": [
             "pre-commit",
             "pytest>=7.0.0,<8.0.0",  # https://github.com/pytest-dev/pytest/issues/12273
