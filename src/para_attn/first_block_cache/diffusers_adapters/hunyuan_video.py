@@ -98,7 +98,7 @@ def apply_cache_on_transformer(
 
                 # 4. Transformer blocks
                 hidden_states, encoder_hidden_states = self.call_transformer_blocks(
-                    hidden_states, encoder_hidden_states, temb, guidance, image_rotary_emb
+                    hidden_states, encoder_hidden_states, temb, None, image_rotary_emb
                 )
 
                 # 5. Output projection
@@ -124,7 +124,7 @@ def apply_cache_on_transformer(
 
     transformer.forward = new_forward.__get__(transformer)
 
-    def call_transformer_blocks(self, hidden_states, encoder_hidden_states, temb, guidance, image_rotary_emb):
+    def call_transformer_blocks(self, hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb):
         # 4. Transformer blocks
         if torch.is_grad_enabled() and self.gradient_checkpointing:
 
@@ -145,7 +145,7 @@ def apply_cache_on_transformer(
                     hidden_states,
                     encoder_hidden_states,
                     temb,
-                    None,
+                    attention_mask,
                     image_rotary_emb,
                     **ckpt_kwargs,
                 )
@@ -156,7 +156,7 @@ def apply_cache_on_transformer(
                     hidden_states,
                     encoder_hidden_states,
                     temb,
-                    None,
+                    attention_mask,
                     image_rotary_emb,
                     **ckpt_kwargs,
                 )
