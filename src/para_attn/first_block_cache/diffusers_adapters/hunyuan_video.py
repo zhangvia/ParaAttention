@@ -96,6 +96,7 @@ def apply_cache_on_transformer(
 
                 encoder_hidden_states = encoder_hidden_states[:, encoder_attention_mask[0].bool()]
 
+                # 4. Transformer blocks
                 hidden_states, encoder_hidden_states = self.call_transformer_blocks(
                     hidden_states, encoder_hidden_states, temb, guidance, image_rotary_emb
                 )
