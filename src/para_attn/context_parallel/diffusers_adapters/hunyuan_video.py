@@ -180,12 +180,12 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
         else:
             for block in self.transformer_blocks:
                 hidden_states, encoder_hidden_states = block(
-                    hidden_states, encoder_hidden_states, temb, None, image_rotary_emb
+                    hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
                 )
 
             for block in self.single_transformer_blocks:
                 hidden_states, encoder_hidden_states = block(
-                    hidden_states, encoder_hidden_states, temb, None, image_rotary_emb
+                    hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
                 )
 
         return hidden_states, encoder_hidden_states
