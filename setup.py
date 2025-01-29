@@ -56,6 +56,7 @@ setup(
             "peft",
             "protobuf",
             "sentencepiece",
+            "opencv-python",
         ],
     },
 )
