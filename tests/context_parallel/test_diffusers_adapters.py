@@ -1,7 +1,8 @@
-import pytest
+import contextlib
 
 import time
-import contextlib
+
+import pytest
 
 import torch
 from torch.testing._internal.common_utils import instantiate_parametrized_tests, parametrize, run_tests
