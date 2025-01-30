@@ -1,6 +1,7 @@
-import time
-
 import pytest
+
+import time
+import contextlib
 
 import torch
 from torch.testing._internal.common_utils import instantiate_parametrized_tests, parametrize, run_tests
@@ -45,33 +46,34 @@ class DiffusionPipelineTest(DTensorTestBase):
         return False
 
     def _test_benchmark_pipe(self, dtype, device, parallelize, compile, use_batch, use_ring):
-        torch.manual_seed(0)
+        with torch.cuda.device(self.rank) if device == "cuda" else contextlib.nullcontext():
+            torch.manual_seed(0)
 
-        pipe = self.new_pipe(dtype, device)
+            pipe = self.new_pipe(dtype, device)
 
-        if parallelize:
-            from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
-
-            mesh = self.mesh(device, use_batch=use_batch, use_ring=use_ring)
-            parallelize_pipe(pipe, mesh=mesh)
-
-            if self.enable_vae_parallel:
-                from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
-
-                parallelize_vae(pipe.vae, mesh=mesh._flatten())
-
-        if compile:
             if parallelize:
-                torch._inductor.config.reorder_for_compute_comm_overlap = True
-            # If cudagraphs is enabled and parallelize is True, the test will hang indefinitely
-            # after the last iteration.
-            pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+                from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-        for _ in range(2):
-            begin = time.time()
-            self.call_pipe(pipe)
-            end = time.time()
-            print(f"Time taken: {end - begin:.3f} seconds")
+                mesh = self.mesh(device, use_batch=use_batch, use_ring=use_ring)
+                parallelize_pipe(pipe, mesh=mesh)
+
+                if self.enable_vae_parallel:
+                    from para_attn.parallel_vae.diffusers_adapters import parallelize_vae
+
+                    parallelize_vae(pipe.vae, mesh=mesh._flatten())
+
+            if compile:
+                if parallelize:
+                    torch._inductor.config.reorder_for_compute_comm_overlap = True
+                # If cudagraphs is enabled and parallelize is True, the test will hang indefinitely
+                # after the last iteration.
+                pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+
+            for _ in range(2):
+                begin = time.time()
+                self.call_pipe(pipe)
+                end = time.time()
+                print(f"Time taken: {end - begin:.3f} seconds")
 
 
 class FluxPipelineTest(DiffusionPipelineTest):
@@ -192,7 +194,7 @@ class HunyuanVideoPipelineTest(DiffusionPipelineTest):
         from diffusers import HunyuanVideoPipeline, HunyuanVideoTransformer3DModel
 
         # [rank1]: RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.  (Could this error message be improved?  If so, please report an enhancement request to PyTorch.)
-        torch.backends.cuda.enable_cudnn_sdp(False)
+        # torch.backends.cuda.enable_cudnn_sdp(False)
 
         model_id = "tencent/HunyuanVideo"
         transformer = HunyuanVideoTransformer3DModel.from_pretrained(
