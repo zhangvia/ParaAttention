@@ -48,9 +48,11 @@ setup(
         "dev": [
             "pre-commit",
             "pytest>=7.0.0,<8.0.0",  # https://github.com/pytest-dev/pytest/issues/12273
+            "pytest-html",
             "expecttest",
+            "hypothesis",
             #
-            "transformers",
+            "transformers",  # Fail to import hypothesis in common_utils, tests are not derandomized
             "diffusers",
             "accelerate",
             "peft",
