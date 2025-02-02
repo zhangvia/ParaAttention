@@ -1,10 +1,11 @@
-import pytest
-import pytest_html
+import base64
 
 import contextlib
-import time
 import io
-import base64
+import time
+
+import pytest
+import pytest_html
 
 import torch
 
