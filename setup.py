@@ -50,9 +50,9 @@ setup(
             "pytest>=7.0.0,<8.0.0",  # https://github.com/pytest-dev/pytest/issues/12273
             "pytest-html",
             "expecttest",
-            "hypothesis",
+            "hypothesis",  # Fail to import hypothesis in common_utils, tests are not derandomized
             #
-            "transformers",  # Fail to import hypothesis in common_utils, tests are not derandomized
+            "transformers",
             "diffusers",
             "accelerate",
             "peft",
