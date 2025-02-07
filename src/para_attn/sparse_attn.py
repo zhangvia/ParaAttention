@@ -618,7 +618,7 @@ class SparseKVAttnMode(TorchFunctionMode):
         if SparseKVAttnMode.disabled:
             return func(*args, **kwargs)
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
+        if func is F.scaled_dot_product_attention:
             return sparse_kv_attn_func(*args, **kwargs, dispatch_to_custom_ops=self._dispatch_to_custom_ops)
 
         return func(*args, **kwargs)
@@ -672,7 +672,7 @@ class StructSparseAttnMode(TorchFunctionMode):
         if StructSparseAttnMode.disabled:
             return func(*args, **kwargs)
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
+        if func is F.scaled_dot_product_attention:
             return struct_sparse_attn_func(
                 *args,
                 **kwargs,
@@ -735,7 +735,7 @@ class FocusAttnMode(TorchFunctionMode):
         if FocusAttnMode.disabled:
             return func(*args, **kwargs)
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
+        if func is F.scaled_dot_product_attention:
             return focus_attn_func(
                 *args,
                 **kwargs,
