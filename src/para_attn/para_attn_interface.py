@@ -290,7 +290,7 @@ class RingAttnMode(TorchFunctionMode):
         if RingAttnMode.disabled:
             return func(*args, **kwargs)
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
+        if func is F.scaled_dot_product_attention:
             return ring_attn_func(*args, **kwargs, mesh=self._mesh)
 
         return func(*args, **kwargs)
@@ -334,7 +334,7 @@ class UlyssesAttnMode(TorchFunctionMode):
         if UlyssesAttnMode.disabled:
             return func(*args, **kwargs)
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
+        if func is F.scaled_dot_product_attention:
             return ulysses_attn_func(*args, **kwargs, mesh=self._mesh)
 
         return func(*args, **kwargs)
@@ -402,7 +402,7 @@ class UnifiedAttnMode(TorchFunctionMode):
         if UnifiedAttnMode.disabled:
             return func(*args, **kwargs)
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
+        if func is F.scaled_dot_product_attention:
             parallel_method = self._parallel_method
             if parallel_method == "ulysses":
                 with self._set_parallel_method("ring"), self:
@@ -470,7 +470,7 @@ class InBatchAttnMode(TorchFunctionMode):
         if InBatchAttnMode.disabled:
             return func(*args, **kwargs)
 
-        if func is torch.nn.functional.scaled_dot_product_attention:
+        if func is F.scaled_dot_product_attention:
             return in_batch_attn_func(*args, **kwargs)
 
         return func(*args, **kwargs)
