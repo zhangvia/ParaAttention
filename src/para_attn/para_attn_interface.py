@@ -134,6 +134,7 @@ class RingAttnFunc(torch.autograd.Function):
         if cp_options is None:
             patch_cp_options_convert_to_f32 = contextlib.nullcontext()
             patch_cp_options_enable_load_balance = contextlib.nullcontext()
+            patch_cp_options_rotate_method = contextlib.nullcontext()
         else:
             patch_cp_options_convert_to_f32 = unittest.mock.patch.object(
                 cp_options,
@@ -147,13 +148,22 @@ class RingAttnFunc(torch.autograd.Function):
                 is_causal,
                 create=True,
             )
+            rotate_method = None
+            if hasattr(torch_ring_attention, "_RotateMethod"):
+                rotate_method = getattr(torch_ring_attention._RotateMethod, "ALL_TO_ALL", None)
+            patch_cp_options_rotate_method = unittest.mock.patch.object(
+                cp_options,
+                "rotate_method",
+                rotate_method,
+                create=True,
+            )
 
         with unittest.mock.patch.object(
             torch_ring_attention,
             "_convert_to_f32",
             not para_attn.config.attention.allow_reduced_precision_compute,
             create=True,
-        ), patch_cp_options_convert_to_f32, patch_cp_options_enable_load_balance:
+        ), patch_cp_options_convert_to_f32, patch_cp_options_enable_load_balance, patch_cp_options_rotate_method:
             seq_dim_args = []
             if version.parse(torch.__version__) >= version.parse("2.6.0"):
                 seq_dim_args = [query.ndim - 2]
