@@ -81,6 +81,7 @@ def parallelize_transformer(transformer: HunyuanVideoTransformer3DModel, *, mesh
         hidden_states_len = hidden_states.shape[-2]
         encoder_hidden_states_len = encoder_hidden_states.shape[-2]
 
+        attention_mask = DP.get_assigned_chunk(attention_mask, dim=0, group=batch_mesh)
         attention_mask = attention_mask[:1, ..., :1, :]
 
         new_attention_mask = []

@@ -20,7 +20,6 @@ parallelize_pipe(
     mesh=init_context_parallel_mesh(
         pipe.device.type,
         max_batch_dim_size=2,
-        max_ring_dim_size=2,
     ),
 )
 

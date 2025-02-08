@@ -20,15 +20,11 @@ class DiffusionPipelineRunner(MPDistRunner):
     def world_size(self):
         return torch.cuda.device_count()
 
-    def mesh(self, device, use_batch, use_ring):
+    def mesh(self, device, max_batch_dim_size=None, max_ring_dim_size=None):
         from para_attn.context_parallel import init_context_parallel_mesh
 
         max_batch_dim_size = None
-        if use_batch:
-            max_batch_dim_size = 2
         max_ring_dim_size = None
-        if use_ring:
-            max_ring_dim_size = 2
         mesh = init_context_parallel_mesh(
             device, max_batch_dim_size=max_batch_dim_size, max_ring_dim_size=max_ring_dim_size
         )
@@ -44,7 +40,7 @@ class DiffusionPipelineRunner(MPDistRunner):
     def enable_vae_parallel(self):
         return False
 
-    def _test_benchmark_pipe(self, dtype, device, parallelize, compile, use_batch, use_ring):
+    def _test_benchmark_pipe(self, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
         if not parallelize and self.rank != 0:
             return
 
@@ -56,7 +52,7 @@ class DiffusionPipelineRunner(MPDistRunner):
             if parallelize:
                 from para_attn.context_parallel.diffusers_adapters import parallelize_pipe
 
-                mesh = self.mesh(device, use_batch=use_batch, use_ring=use_ring)
+                mesh = self.mesh(device, max_batch_dim_size=max_batch_dim_size, max_ring_dim_size=max_ring_dim_size)
                 parallelize_pipe(pipe, mesh=mesh)
 
                 if self.enable_vae_parallel:
@@ -105,10 +101,10 @@ class _TestDiffusionPipeline:
     class Runner(DiffusionPipelineRunner):
         pass
 
-    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, use_batch, use_ring):
+    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
         with self.Runner().start() as runner:
             output_image, warmup_time, inference_time = runner(
-                (dtype, device, parallelize, compile, use_batch, use_ring),
+                (dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size),
             )
 
         extras.append(pytest_html.extras.html(f"<div><p>Warm-up time taken: {warmup_time:.3f} seconds</p></div>"))
@@ -146,16 +142,16 @@ class TestFluxPipeline(_TestDiffusionPipeline):
     @pytest.mark.parametrize("dtype", [torch.bfloat16])
     @pytest.mark.parametrize("device", ["cuda"])
     @pytest.mark.parametrize(
-        "parallelize,compile,use_batch,use_ring",
+        "parallelize,compile,max_batch_dim_size,max_ring_dim_size",
         [
-            # [False, False, False, False],
-            # [False, True, False, False],
-            [True, False, False, True],
-            [True, True, False, True],
+            # [False, False, None, None],
+            # [False, True, None, None],
+            [True, False, None, 2],
+            [True, True, None, 2],
         ],
     )
-    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, use_batch, use_ring):
-        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, use_batch, use_ring)
+    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
+        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size)
 
 
 class TestMochiPipeline(_TestDiffusionPipeline):
@@ -184,16 +180,16 @@ class TestMochiPipeline(_TestDiffusionPipeline):
     @pytest.mark.parametrize("dtype", [torch.bfloat16])
     @pytest.mark.parametrize("device", ["cuda"])
     @pytest.mark.parametrize(
-        "parallelize,compile,use_batch,use_ring",
+        "parallelize,compile,max_batch_dim_size,max_ring_dim_size",
         [
-            # [False, False, False, False],
-            # [False, True, False, False],
-            [True, False, True, True],
-            [True, True, True, True],
+            # [False, False, None, None],
+            # [False, True, None, None],
+            [True, False, 2, None],
+            [True, True, 2, None],
         ],
     )
-    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, use_batch, use_ring):
-        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, use_batch, use_ring)
+    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
+        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size)
 
 
 class TestCogVideoXPipeline(_TestDiffusionPipeline):
@@ -225,16 +221,16 @@ class TestCogVideoXPipeline(_TestDiffusionPipeline):
     @pytest.mark.parametrize("dtype", [torch.bfloat16])
     @pytest.mark.parametrize("device", ["cuda"])
     @pytest.mark.parametrize(
-        "parallelize,compile,use_batch,use_ring",
+        "parallelize,compile,max_batch_dim_size,max_ring_dim_size",
         [
-            # [False, False, False, False],
-            # [False, True, False, False],
-            [True, False, True, True],
-            [True, True, True, True],
+            # [False, False, None, None],
+            # [False, True, None, None],
+            [True, False, 2, 2],
+            [True, True, 2, 2],
         ],
     )
-    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, use_batch, use_ring):
-        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, use_batch, use_ring)
+    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
+        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size)
 
 
 class TestHunyuanVideoPipeline(_TestDiffusionPipeline):
@@ -295,16 +291,16 @@ class TestHunyuanVideoPipeline(_TestDiffusionPipeline):
     @pytest.mark.parametrize("dtype", [torch.float16])
     @pytest.mark.parametrize("device", ["cuda"])
     @pytest.mark.parametrize(
-        "parallelize,compile,use_batch,use_ring",
+        "parallelize,compile,max_batch_dim_size,max_ring_dim_size",
         [
-            # [False, False, False, False],
-            # [False, True, False, False],
-            [True, False, False, False],
-            [True, True, False, False],
+            # [False, False, None, None],
+            # [False, True, None, None],
+            [True, False, None, None],
+            [True, True, None, None],
         ],
     )
-    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, use_batch, use_ring):
-        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, use_batch, use_ring)
+    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
+        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size)
 
 
 class FluxPipelineMPDistRunner(MPDistRunner):
