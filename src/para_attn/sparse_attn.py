@@ -2,10 +2,10 @@ import contextlib
 
 import torch
 import torch.nn.functional as F
-from torch.overrides import TorchFunctionMode
 
 import para_attn
 import para_attn.ops as para_attn_ops
+from para_attn.utils import BaseTorchFunctionMode
 
 try:
     import torch.distributed.tensor.experimental._attention as torch_ring_attention
@@ -604,10 +604,10 @@ def focus_attn_func(
     )
 
 
-class SparseKVAttnMode(TorchFunctionMode):
+class SparseKVAttnMode(BaseTorchFunctionMode):
     disabled = False
 
-    @torch.compiler.disable()
+    @torch.compiler.disable
     def __init__(self, *, dispatch_to_custom_ops=True):
         super().__init__()
         self._dispatch_to_custom_ops = dispatch_to_custom_ops
@@ -616,20 +616,12 @@ class SparseKVAttnMode(TorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if SparseKVAttnMode.disabled:
-            return func(*args, **kwargs)
+            return super().__torch_function__(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             return sparse_kv_attn_func(*args, **kwargs, dispatch_to_custom_ops=self._dispatch_to_custom_ops)
 
-        return func(*args, **kwargs)
-
-    @torch.compiler.disable()
-    def __enter__(self):
-        super().__enter__()
-
-    @torch.compiler.disable()
-    def __exit__(self, *args):
-        super().__exit__(*args)
+        return super().__torch_function__(func, types, args, kwargs)
 
     @classmethod
     @contextlib.contextmanager
@@ -641,17 +633,17 @@ class SparseKVAttnMode(TorchFunctionMode):
             cls._set_disabled(old_disabled)
 
     @classmethod
-    @torch.compiler.disable()
+    @torch.compiler.disable
     def _set_disabled(cls, value):
         old_disabled = cls.disabled
         cls.disabled = value
         return old_disabled
 
 
-class StructSparseAttnMode(TorchFunctionMode):
+class StructSparseAttnMode(BaseTorchFunctionMode):
     disabled = False
 
-    @torch.compiler.disable()
+    @torch.compiler.disable
     def __init__(
         self,
         *,
@@ -670,7 +662,7 @@ class StructSparseAttnMode(TorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if StructSparseAttnMode.disabled:
-            return func(*args, **kwargs)
+            return super().__torch_function__(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             return struct_sparse_attn_func(
@@ -682,15 +674,7 @@ class StructSparseAttnMode(TorchFunctionMode):
                 print_attn_weight_means=self._print_attn_weight_means,
             )
 
-        return func(*args, **kwargs)
-
-    @torch.compiler.disable()
-    def __enter__(self):
-        super().__enter__()
-
-    @torch.compiler.disable()
-    def __exit__(self, *args):
-        super().__exit__(*args)
+        return super().__torch_function__(func, types, args, kwargs)
 
     @classmethod
     @contextlib.contextmanager
@@ -702,17 +686,17 @@ class StructSparseAttnMode(TorchFunctionMode):
             cls._set_disabled(old_disabled)
 
     @classmethod
-    @torch.compiler.disable()
+    @torch.compiler.disable
     def _set_disabled(cls, value):
         old_disabled = cls.disabled
         cls.disabled = value
         return old_disabled
 
 
-class FocusAttnMode(TorchFunctionMode):
+class FocusAttnMode(BaseTorchFunctionMode):
     disabled = False
 
-    @torch.compiler.disable()
+    @torch.compiler.disable
     def __init__(
         self,
         *,
@@ -733,7 +717,7 @@ class FocusAttnMode(TorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if FocusAttnMode.disabled:
-            return func(*args, **kwargs)
+            return super().__torch_function__(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             return focus_attn_func(
@@ -746,15 +730,7 @@ class FocusAttnMode(TorchFunctionMode):
                 print_attn_weight_means=self._print_attn_weight_means,
             )
 
-        return func(*args, **kwargs)
-
-    @torch.compiler.disable()
-    def __enter__(self):
-        super().__enter__()
-
-    @torch.compiler.disable()
-    def __exit__(self, *args):
-        super().__exit__(*args)
+        return super().__torch_function__(func, types, args, kwargs)
 
     @classmethod
     @contextlib.contextmanager
@@ -766,7 +742,7 @@ class FocusAttnMode(TorchFunctionMode):
             cls._set_disabled(old_disabled)
 
     @classmethod
-    @torch.compiler.disable()
+    @torch.compiler.disable
     def _set_disabled(cls, value):
         old_disabled = cls.disabled
         cls.disabled = value

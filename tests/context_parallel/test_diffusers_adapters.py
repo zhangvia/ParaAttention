@@ -43,8 +43,6 @@ class DiffusionPipelineRunner(MPDistRunner):
             return
 
         with torch.cuda.device(self.rank) if device == "cuda" else contextlib.nullcontext():
-            torch.manual_seed(0)
-
             pipe = self.new_pipe(dtype, device)
 
             if parallelize:
@@ -63,12 +61,16 @@ class DiffusionPipelineRunner(MPDistRunner):
                     torch._inductor.config.reorder_for_compute_comm_overlap = True
                 # If cudagraphs is enabled and parallelize is True, the test will hang indefinitely
                 # after the last iteration.
-                pipe.transformer = torch.compile(pipe.transformer, mode="max-autotune-no-cudagraphs")
+                
+                # TODO: Why CogVideoX fails with max-autotune-no-cudagraphs by outputing NAN?
+                pipe.transformer = torch.compile(pipe.transformer)
 
             output_image, warmup_time, inference_time = None, None, None
 
             try:
                 for i in range(2):
+                    torch.manual_seed(0)
+
                     call_kwargs = {}
                     if i == 0:
                         call_kwargs["num_inference_steps"] = 1
@@ -92,6 +94,7 @@ class DiffusionPipelineRunner(MPDistRunner):
             except Exception as e:
                 if "is not divisible by world_size" in str(e):
                     pytest.skip(str(e))
+                raise
 
             return output_image, warmup_time, inference_time
 
@@ -148,10 +151,10 @@ class TestFluxPipeline(_TestDiffusionPipeline):
         [
             # [False, False, None, None],
             # [False, True, None, None],
-            # [True, False, None, 2],
-            # [True, True, None, 2],
-            [True, False, None, None],
-            [True, True, None, None],
+            [True, False, None, 2],
+            [True, True, None, 2],
+            # [True, False, None, None],
+            # [True, True, None, None],
         ],
     )
     def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
