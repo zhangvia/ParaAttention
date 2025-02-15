@@ -1,8 +1,9 @@
-from packaging import version
 import torch
-import para_attn
+from packaging import version
 
 from torch.overrides import TorchFunctionMode
+
+import para_attn
 
 
 @torch.compiler.assume_constant_result
@@ -16,6 +17,10 @@ def _get_force_dispatch_to_custom_ops():
 
 
 class BaseTorchFunctionMode(TorchFunctionMode):
+    @torch.compiler.disable
+    def __init__(self):
+        super().__init__()
+
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
