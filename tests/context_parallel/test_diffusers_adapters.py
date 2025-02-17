@@ -67,34 +67,29 @@ class DiffusionPipelineRunner(MPDistRunner):
 
             output_image, warmup_time, inference_time = None, None, None
 
-            try:
-                for i in range(2):
-                    torch.manual_seed(0)
+            for i in range(2):
+                torch.manual_seed(0)
 
-                    call_kwargs = {}
-                    if i == 0:
-                        call_kwargs["num_inference_steps"] = 1
-                    begin = time.time()
-                    output = self.call_pipe(pipe, **call_kwargs)
-                    end = time.time()
-                    if i == 0:
-                        warmup_time = end - begin
-                        msg = f"Warm-up time taken: {warmup_time:.3f} seconds"
-                    else:
-                        inference_time = end - begin
-                        msg = f"Inference time taken: {inference_time:.3f} seconds"
-                    if self.rank == 0:
-                        print(msg)
-                    if i != 0:
-                        if hasattr(output, "images"):
-                            output_image = output.images[0]
-                        elif hasattr(output, "frames"):
-                            video = output.frames[0]
-                            output_image = video[0]
-            except Exception as e:
-                if "is not divisible by world_size" in str(e):
-                    pytest.skip(str(e))
-                raise
+                call_kwargs = {}
+                if i == 0:
+                    call_kwargs["num_inference_steps"] = 1
+                begin = time.time()
+                output = self.call_pipe(pipe, **call_kwargs)
+                end = time.time()
+                if i == 0:
+                    warmup_time = end - begin
+                    msg = f"Warm-up time taken: {warmup_time:.3f} seconds"
+                else:
+                    inference_time = end - begin
+                    msg = f"Inference time taken: {inference_time:.3f} seconds"
+                if self.rank == 0:
+                    print(msg)
+                if i != 0:
+                    if hasattr(output, "images"):
+                        output_image = output.images[0]
+                    elif hasattr(output, "frames"):
+                        video = output.frames[0]
+                        output_image = video[0]
 
             return output_image, warmup_time, inference_time
 
@@ -108,9 +103,16 @@ class _TestDiffusionPipeline:
 
     def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
         with self.Runner().start() as runner:
-            output_image, warmup_time, inference_time = runner(
-                (dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size),
-            )
+            try:
+                output_image, warmup_time, inference_time = runner(
+                    (dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size),
+                )
+            except Exception as e:
+                lines = str(e).split("\n")
+                for line in lines:
+                    if "is not divisible by world_size" in line:
+                        pytest.skip(line)
+                raise
 
         extras.append(pytest_html.extras.html(f"<div><p>Warm-up time taken: {warmup_time:.3f} seconds</p></div>"))
         extras.append(pytest_html.extras.html(f"<div><p>Inference time taken: {inference_time:.3f} seconds</p></div>"))
