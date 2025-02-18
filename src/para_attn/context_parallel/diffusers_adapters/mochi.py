@@ -267,9 +267,8 @@ def parallelize_transformer(transformer: MochiTransformer3DModel, *, mesh=None):
 
 
 def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **kwargs):
-    original_call = pipe.__class__.__call__
-
-    if not getattr(original_call, "_is_parallelized", False):
+    if not getattr(pipe, "_is_parallelized", False):
+        original_call = pipe.__class__.__call__
 
         @functools.wraps(original_call)
         def new_call(self, *args, generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None, **kwargs):
@@ -285,10 +284,9 @@ def parallelize_pipe(pipe: DiffusionPipeline, *, shallow_patch: bool = False, **
         new_call._is_parallelized = True
 
         pipe.__class__.__call__ = new_call
+        pipe.__class__._is_parallelized = True
 
     if not shallow_patch:
         parallelize_transformer(pipe.transformer, **kwargs)
-
-    pipe._is_parallelized = True
 
     return pipe

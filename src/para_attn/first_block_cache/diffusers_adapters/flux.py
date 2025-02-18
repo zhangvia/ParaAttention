@@ -12,6 +12,9 @@ def apply_cache_on_transformer(
     *,
     residual_diff_threshold=0.05,
 ):
+    if getattr(transformer, "_is_cached", False):
+        return transformer
+
     cached_transformer_blocks = torch.nn.ModuleList(
         [
             utils.CachedTransformerBlocks(
@@ -49,6 +52,8 @@ def apply_cache_on_transformer(
 
     transformer.forward = new_forward.__get__(transformer)
 
+    transformer._is_cached = True
+
     return transformer
 
 
@@ -58,9 +63,8 @@ def apply_cache_on_pipe(
     shallow_patch: bool = False,
     **kwargs,
 ):
-    original_call = pipe.__class__.__call__
-
-    if not getattr(original_call, "_is_cached", False):
+    if not getattr(pipe, "_is_cached", False):
+        original_call = pipe.__class__.__call__
 
         @functools.wraps(original_call)
         def new_call(self, *args, **kwargs):
@@ -68,12 +72,9 @@ def apply_cache_on_pipe(
                 return original_call(self, *args, **kwargs)
 
         pipe.__class__.__call__ = new_call
-
-        new_call._is_cached = True
+        pipe.__class__._is_cached = True
 
     if not shallow_patch:
         apply_cache_on_transformer(pipe.transformer, **kwargs)
-
-    pipe._is_cached = True
 
     return pipe
