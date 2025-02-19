@@ -106,7 +106,7 @@ class MPDistRunner:
                         shared_array,
                         input_queue if rank == 0 else None,
                         output_queue if rank == 0 else None,
-                        exception_queues[rank] if rank == 0 else None,
+                        exception_queues[rank],
                         status if rank == 0 else None,
                     ),
                     daemon=True,
