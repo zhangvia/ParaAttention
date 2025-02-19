@@ -142,6 +142,7 @@ class MPDistRunner:
                                 exceptions.append((rank, exception))
                 if len(exceptions) == world_size or any(e is not None for e in exceptions):
                     break
+                time.sleep(0.0)
             exceptions = [e for e in exceptions if e is not None]
             if exceptions:
                 msg = "\n".join(f"Rank {rank}: {exception}" for rank, exception in exceptions)
