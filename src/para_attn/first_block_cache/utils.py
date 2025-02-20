@@ -161,6 +161,7 @@ class CachedTransformerBlocks(torch.nn.Module):
         first_transformer_block = self.transformer_blocks[0]
         hidden_states = first_transformer_block(hidden_states, encoder_hidden_states, *args, **kwargs)
         if not isinstance(hidden_states, torch.Tensor):
+            hidden_states, encoder_hidden_states = hidden_states
             if not self.return_hidden_states_first:
                 hidden_states, encoder_hidden_states = encoder_hidden_states, hidden_states
         first_hidden_states_residual = hidden_states - original_hidden_states
@@ -207,6 +208,7 @@ class CachedTransformerBlocks(torch.nn.Module):
         for block in self.transformer_blocks[1:]:
             hidden_states = block(hidden_states, encoder_hidden_states, *args, **kwargs)
             if not isinstance(hidden_states, torch.Tensor):
+                hidden_states, encoder_hidden_states = hidden_states
                 if not self.return_hidden_states_first:
                     hidden_states, encoder_hidden_states = encoder_hidden_states, hidden_states
         if self.single_transformer_blocks is not None:
