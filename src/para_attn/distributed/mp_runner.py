@@ -270,7 +270,9 @@ class MPDistRunner:
                 exception = RuntimeError(f"Failed to initialize processor: {e}\n{traceback.format_exc()}")
                 if exception_queue is not None:
                     exception_queue.put(exception)
-                raise
+                # raise
+                while True:
+                    time.sleep(0.0)
 
             if exception_queue is not None:
                 exception_queue.put(None)
