@@ -15,7 +15,7 @@ from para_attn.sparse_attn import (
     struct_sparse_attn_func,
     StructSparseAttnMode,
 )
-from para_attn.utils import _get_force_dispatch_to_custom_ops, _torch_version_check, BaseTorchFunctionMode
+from para_attn.utils import BaseTorchFunctionMode, get_force_dispatch_to_custom_ops, torch_version_check
 
 try:
     from torch.distributed.tensor.experimental._attention import _templated_ring_attention
@@ -92,6 +92,7 @@ def ulysses_attn_func(
     *,
     scale=None,
     mesh=None,
+    attn_func=None,
 ):
     assert query.ndim == 4, "query must have 4 dimensions, got {}".format(query.ndim)
     assert key.ndim == 4, "key must have 4 dimensions, got {}".format(key.ndim)
@@ -104,9 +105,10 @@ def ulysses_attn_func(
     key = _sdpa_input_all_to_all(key, mesh)
     value = _sdpa_input_all_to_all(value, mesh)
 
-    out = F.scaled_dot_product_attention(
-        query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale
-    )
+    if attn_func is None:
+        attn_func = F.scaled_dot_product_attention
+
+    out = attn_func(query, key, value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale)
 
     out = _sdpa_output_all_to_all(out, mesh)
     return out
@@ -168,7 +170,7 @@ class RingAttnFunc(torch.autograd.Function):
         assert _templated_ring_attention is not None, "RingAttnFunc requires a newer version of PyTorch"
 
         seq_dim_args = []
-        if _torch_version_check("__ge__", "2.6.0"):
+        if torch_version_check("__ge__", "2.6.0"):
             seq_dim_args = [query.ndim - 2]
         settings = _setup_ring_attn_func_forward()
         try:
@@ -337,9 +339,10 @@ class UlyssesAttnMode(BaseTorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable
-    def __init__(self, mesh=None):
+    def __init__(self, mesh=None, *, attn_func=None):
         super().__init__()
         self._mesh = mesh
+        self._attn_func = attn_func
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
@@ -354,7 +357,8 @@ class UlyssesAttnMode(BaseTorchFunctionMode):
 
     def _call_ulysses_attn_func(self, *args, **kwargs):
         mesh = self._mesh
-        return ulysses_attn_func(*args, **kwargs, mesh=mesh)
+        attn_func = self._attn_func
+        return ulysses_attn_func(*args, **kwargs, mesh=mesh, attn_func=attn_func)
 
     @classmethod
     @contextlib.contextmanager
@@ -440,7 +444,7 @@ class UnifiedAttnMode(BaseTorchFunctionMode):
             finally:
                 self._parallel_method = parallel_method
         elif parallel_method == "none":
-            if _get_force_dispatch_to_custom_ops():
+            if get_force_dispatch_to_custom_ops():
                 out = para_attn_ops.attention_forward(*args, **kwargs)
             else:
                 out = func(*args, **kwargs)

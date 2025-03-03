@@ -7,12 +7,12 @@ import para_attn
 
 
 @torch.compiler.assume_constant_result
-def _torch_version_check(op, v):
+def torch_version_check(op, v):
     return getattr(version.parse(torch.__version__), op)(version.parse(v))
 
 
 @torch.compiler.assume_constant_result
-def _get_force_dispatch_to_custom_ops():
+def get_force_dispatch_to_custom_ops():
     return para_attn.config.attention.force_dispatch_to_custom_ops
 
 
