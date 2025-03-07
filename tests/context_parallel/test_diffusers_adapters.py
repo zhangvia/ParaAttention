@@ -359,8 +359,6 @@ class TestHunyuanVideoImageToVideoPipeline(_TestDiffusionPipeline):
                 image=load_image(
                     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/guitar-man.png"
                 ),
-                height=720,
-                width=1280,
                 num_frames=129,
                 output_type="pil" if self.rank == 0 else "pt",
                 **kwargs,
