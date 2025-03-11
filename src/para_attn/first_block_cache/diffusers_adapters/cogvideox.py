@@ -45,6 +45,16 @@ def apply_cache_on_transformer(
 
     transformer.forward = new_forward.__get__(transformer)
 
+    def get_residual_diff_threshold(self):
+        return cached_transformer_blocks[0].residual_diff_threshold
+
+    transformer.get_residual_diff_threshold = get_residual_diff_threshold.__get__(transformer)
+
+    def set_residual_diff_threshold(self, value):
+        cached_transformer_blocks[0].residual_diff_threshold = value
+
+    transformer.set_residual_diff_threshold = set_residual_diff_threshold.__get__(transformer)
+
     transformer._is_cached = True
 
     return transformer
