@@ -312,6 +312,77 @@ class TestHunyuanVideoPipeline(_TestDiffusionPipeline):
         super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size)
 
 
+class TestHunyuanVideoImageToVideoPipeline(_TestDiffusionPipeline):
+    class Runner(DiffusionPipelineRunner):
+        def new_pipe(self, dtype, device):
+            from diffusers import HunyuanVideoImageToVideoPipeline, HunyuanVideoTransformer3DModel
+
+            # [rank1]: RuntimeError: Expected mha_graph->execute(handle, variant_pack, workspace_ptr.get()).is_good() to be true, but got false.  (Could this error message be improved?  If so, please report an enhancement request to PyTorch.)
+            # torch.backends.cuda.enable_cudnn_sdp(False)
+
+            model_id = "hunyuanvideo-community/HunyuanVideo-I2V"
+            transformer = HunyuanVideoTransformer3DModel.from_pretrained(
+                model_id,
+                subfolder="transformer",
+                torch_dtype=torch.bfloat16,
+            )
+            pipe = HunyuanVideoImageToVideoPipeline.from_pretrained(
+                model_id,
+                transformer=transformer,
+                torch_dtype=dtype,
+            ).to(f"{device}:{self.rank}")
+
+            pipe.vae.enable_tiling(
+                # Make it runnable on GPUs with 48GB memory
+                # tile_sample_min_height=128,
+                # tile_sample_stride_height=96,
+                # tile_sample_min_width=128,
+                # tile_sample_stride_width=96,
+                # tile_sample_min_num_frames=32,
+                # tile_sample_stride_num_frames=24,
+            )
+
+            # Fix OOM because of awful inductor lowering of attn_bias of _scaled_dot_product_efficient_attention
+            # import para_attn
+            #
+            # para_attn.config.attention.force_dispatch_to_custom_ops = True
+
+            return pipe
+
+        def call_pipe(self, pipe, **kwargs):
+            from diffusers.utils import load_image
+
+            if "num_inference_steps" not in kwargs:
+                kwargs["num_inference_steps"] = 30
+            return pipe(
+                prompt="A man with short gray hair plays a red electric guitar.",
+                image=load_image(
+                    "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/guitar-man.png"
+                ),
+                num_frames=129,
+                output_type="pil" if self.rank == 0 else "pt",
+                **kwargs,
+            )
+
+        @property
+        def enable_vae_parallel(self):
+            return True
+
+    @pytest.mark.parametrize("dtype", [torch.float16])
+    @pytest.mark.parametrize("device", ["cuda"])
+    @pytest.mark.parametrize(
+        "parallelize,compile,max_batch_dim_size,max_ring_dim_size",
+        [
+            # [False, False, None, None],
+            # [False, True, None, None],
+            [True, False, None, None],
+            [True, True, None, None],
+        ],
+    )
+    def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
+        super().test_benchmark_pipe(extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size)
+
+
 class FluxPipelineMPDistRunner(MPDistRunner):
     @property
     def world_size(self):

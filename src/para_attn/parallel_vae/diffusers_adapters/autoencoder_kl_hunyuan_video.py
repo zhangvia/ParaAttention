@@ -51,6 +51,16 @@ def parallelize_vae(vae: AutoencoderKLHunyuanVideo, *, mesh=None):
         blend_height = tile_latent_min_height - tile_latent_stride_height
         blend_width = tile_latent_min_width - tile_latent_stride_width
 
+        if hasattr(self, "tile_sample_min_height"):
+            tile_sample_min_height = self.tile_sample_min_height
+        else:
+            tile_sample_min_height = self.tile_sample_min_size
+
+        if hasattr(self, "tile_sample_min_width"):
+            tile_sample_min_width = self.tile_sample_min_width
+        else:
+            tile_sample_min_width = self.tile_sample_min_size
+
         # Split x into overlapping tiles and encode them separately.
         # The tiles have an overlap to avoid seams between tiles.
         count = 0
@@ -59,7 +69,7 @@ def parallelize_vae(vae: AutoencoderKLHunyuanVideo, *, mesh=None):
             row = []
             for j in range(0, width, self.tile_sample_stride_width):
                 if count % world_size == rank:
-                    tile = x[:, :, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
+                    tile = x[:, :, :, i : i + tile_sample_min_height, j : j + tile_sample_min_width]
                     tile = self.encoder(tile)
                     tile = self.quant_conv(tile)
                 else:
