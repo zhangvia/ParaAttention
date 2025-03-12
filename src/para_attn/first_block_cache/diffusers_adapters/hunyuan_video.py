@@ -15,8 +15,6 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 def apply_cache_on_transformer(
     transformer: HunyuanVideoTransformer3DModel,
-    *,
-    residual_diff_threshold=0.06,
 ):
     if getattr(transformer, "_is_cached", False):
         return transformer
@@ -181,16 +179,6 @@ def apply_cache_on_transformer(
 
     transformer.call_transformer_blocks = call_transformer_blocks.__get__(transformer)
 
-    def get_residual_diff_threshold(self):
-        return cached_transformer_blocks[0].residual_diff_threshold
-
-    transformer.get_residual_diff_threshold = get_residual_diff_threshold.__get__(transformer)
-
-    def set_residual_diff_threshold(self, value):
-        cached_transformer_blocks[0].residual_diff_threshold = value
-
-    transformer.set_residual_diff_threshold = set_residual_diff_threshold.__get__(transformer)
-
     transformer._is_cached = True
 
     return transformer
@@ -200,6 +188,7 @@ def apply_cache_on_pipe(
     pipe: DiffusionPipeline,
     *,
     shallow_patch: bool = False,
+    residual_diff_threshold=0.06,
     **kwargs,
 ):
     if not getattr(pipe, "_is_cached", False):
@@ -207,7 +196,7 @@ def apply_cache_on_pipe(
 
         @functools.wraps(original_call)
         def new_call(self, *args, **kwargs):
-            with utils.cache_context(utils.create_cache_context()):
+            with utils.cache_context(utils.create_cache_context(residual_diff_threshold=residual_diff_threshold)):
                 return original_call(self, *args, **kwargs)
 
         pipe.__class__.__call__ = new_call

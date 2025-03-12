@@ -1,7 +1,7 @@
 import contextlib
 import dataclasses
 from collections import defaultdict
-from typing import DefaultDict, Dict
+from typing import DefaultDict, Dict, Union
 
 import torch
 
@@ -10,6 +10,8 @@ import para_attn.primitives as DP
 
 @dataclasses.dataclass
 class CacheContext:
+    residual_diff_threshold: Union[torch.Tensor, float] = 0.0
+
     buffers: Dict[str, torch.Tensor] = dataclasses.field(default_factory=dict)
     incremental_name_counters: DefaultDict[str, int] = dataclasses.field(default_factory=lambda: defaultdict(int))
 
@@ -24,6 +26,16 @@ class CacheContext:
         self.incremental_name_counters.clear()
 
     @torch.compiler.disable
+    def get_residual_diff_threshold(self):
+        residual_diff_threshold = self.residual_diff_threshold
+        if isinstance(residual_diff_threshold, torch.Tensor):
+            residual_diff_threshold = residual_diff_threshold.item()
+        return residual_diff_threshold
+
+    def set_residual_diff_threshold(self, threshold):
+        self.residual_diff_threshold = threshold
+
+    @torch.compiler.disable
     def get_buffer(self, name):
         return self.buffers.get(name)
 
@@ -33,6 +45,13 @@ class CacheContext:
 
     def clear_buffers(self):
         self.buffers.clear()
+
+
+@torch.compiler.disable
+def get_residual_diff_threshold():
+    cache_context = get_current_cache_context()
+    assert cache_context is not None, "cache_context must be set before"
+    return cache_context.get_residual_diff_threshold()
 
 
 @torch.compiler.disable
@@ -109,7 +128,7 @@ def get_can_use_cache(first_hidden_states_residual, threshold, parallelized=Fals
     can_use_cache = prev_first_hidden_states_residual is not None and are_two_tensors_similar(
         prev_first_hidden_states_residual,
         first_hidden_states_residual,
-        threshold=threshold,
+        threshold=get_residual_diff_threshold(),
         parallelized=parallelized,
     )
     return can_use_cache
@@ -121,14 +140,11 @@ class CachedTransformerBlocks(torch.nn.Module):
         transformer_blocks,
         single_transformer_blocks=None,
         *,
-        residual_diff_threshold,
         transformer=None,
         return_hidden_states_first=True,
         return_hidden_states_only=False,
     ):
         super().__init__()
-
-        self.residual_diff_threshold = residual_diff_threshold
 
         self.transformer = transformer
         self.transformer_blocks = transformer_blocks
@@ -149,7 +165,6 @@ class CachedTransformerBlocks(torch.nn.Module):
 
         can_use_cache = get_can_use_cache(
             first_hidden_states_residual,
-            threshold=self.residual_diff_threshold,
             parallelized=self.transformer is not None and getattr(self.transformer, "_is_parallelized", False),
         )
 
