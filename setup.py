@@ -53,12 +53,13 @@ setup(
             "hypothesis",  # Fail to import hypothesis in common_utils, tests are not derandomized
             #
             "transformers",
-            "diffusers",
+            "diffusers @ git+https://github.com/huggingface/diffusers",  # wan currently requires installing from source
             "accelerate",
             "peft",
             "protobuf",
             "sentencepiece",
             "opencv-python",
+            "ftfy",
         ],
     },
 )

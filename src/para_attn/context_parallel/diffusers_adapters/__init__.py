@@ -37,6 +37,8 @@ def parallelize_pipe(pipe: DiffusionPipeline, *args, **kwargs):
         adapter_name = "cogvideox"
     elif pipe_cls_name.startswith("HunyuanVideo"):
         adapter_name = "hunyuan_video"
+    elif pipe_cls_name.startswith("Wan"):
+        adapter_name = "wan"
     else:
         raise ValueError(f"Unknown pipeline class name: {pipe_cls_name}")
 
