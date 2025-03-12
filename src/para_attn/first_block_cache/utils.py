@@ -1,7 +1,7 @@
 import contextlib
 import dataclasses
 from collections import defaultdict
-from typing import DefaultDict, Dict
+from typing import DefaultDict, Dict, Union
 
 import torch
 
@@ -10,6 +10,8 @@ import para_attn.primitives as DP
 
 @dataclasses.dataclass
 class CacheContext:
+    residual_diff_threshold: Union[torch.Tensor, float] = 0.0
+
     buffers: Dict[str, torch.Tensor] = dataclasses.field(default_factory=dict)
     incremental_name_counters: DefaultDict[str, int] = dataclasses.field(default_factory=lambda: defaultdict(int))
 
@@ -24,6 +26,16 @@ class CacheContext:
         self.incremental_name_counters.clear()
 
     @torch.compiler.disable
+    def get_residual_diff_threshold(self):
+        residual_diff_threshold = self.residual_diff_threshold
+        if isinstance(residual_diff_threshold, torch.Tensor):
+            residual_diff_threshold = residual_diff_threshold.item()
+        return residual_diff_threshold
+
+    def set_residual_diff_threshold(self, threshold):
+        self.residual_diff_threshold = threshold
+
+    @torch.compiler.disable
     def get_buffer(self, name):
         return self.buffers.get(name)
 
@@ -33,6 +45,13 @@ class CacheContext:
 
     def clear_buffers(self):
         self.buffers.clear()
+
+
+@torch.compiler.disable
+def get_residual_diff_threshold():
+    cache_context = get_current_cache_context()
+    assert cache_context is not None, "cache_context must be set before"
+    return cache_context.get_residual_diff_threshold()
 
 
 @torch.compiler.disable
@@ -52,8 +71,8 @@ def set_buffer(name, buffer):
 _current_cache_context = None
 
 
-def create_cache_context():
-    return CacheContext()
+def create_cache_context(*args, **kwargs):
+    return CacheContext(*args, **kwargs)
 
 
 def get_current_cache_context():
@@ -104,12 +123,12 @@ def apply_prev_hidden_states_residual(hidden_states, encoder_hidden_states):
 
 
 @torch.compiler.disable
-def get_can_use_cache(first_hidden_states_residual, threshold, parallelized=False):
+def get_can_use_cache(first_hidden_states_residual, parallelized=False):
     prev_first_hidden_states_residual = get_buffer("first_hidden_states_residual")
     can_use_cache = prev_first_hidden_states_residual is not None and are_two_tensors_similar(
         prev_first_hidden_states_residual,
         first_hidden_states_residual,
-        threshold=threshold,
+        threshold=get_residual_diff_threshold(),
         parallelized=parallelized,
     )
     return can_use_cache
@@ -122,41 +141,18 @@ class CachedTransformerBlocks(torch.nn.Module):
         single_transformer_blocks=None,
         *,
         transformer=None,
-        residual_diff_threshold,
         return_hidden_states_first=True,
         return_hidden_states_only=False,
     ):
         super().__init__()
+
         self.transformer = transformer
         self.transformer_blocks = transformer_blocks
         self.single_transformer_blocks = single_transformer_blocks
-        self.residual_diff_threshold = residual_diff_threshold
         self.return_hidden_states_first = return_hidden_states_first
         self.return_hidden_states_only = return_hidden_states_only
 
     def forward(self, hidden_states, encoder_hidden_states, *args, **kwargs):
-        if self.residual_diff_threshold <= 0.0:
-            for block in self.transformer_blocks:
-                hidden_states = block(hidden_states, encoder_hidden_states, *args, **kwargs)
-                if not isinstance(hidden_states, torch.Tensor):
-                    hidden_states, encoder_hidden_states = hidden_states
-                    if not self.return_hidden_states_first:
-                        hidden_states, encoder_hidden_states = encoder_hidden_states, hidden_states
-            if self.single_transformer_blocks is not None:
-                hidden_states = torch.cat([encoder_hidden_states, hidden_states], dim=1)
-                for block in self.single_transformer_blocks:
-                    hidden_states = block(hidden_states, *args, **kwargs)
-                hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :]
-            return (
-                hidden_states
-                if self.return_hidden_states_only
-                else (
-                    (hidden_states, encoder_hidden_states)
-                    if self.return_hidden_states_first
-                    else (encoder_hidden_states, hidden_states)
-                )
-            )
-
         original_hidden_states = hidden_states
         first_transformer_block = self.transformer_blocks[0]
         hidden_states = first_transformer_block(hidden_states, encoder_hidden_states, *args, **kwargs)
@@ -169,7 +165,6 @@ class CachedTransformerBlocks(torch.nn.Module):
 
         can_use_cache = get_can_use_cache(
             first_hidden_states_residual,
-            threshold=self.residual_diff_threshold,
             parallelized=self.transformer is not None and getattr(self.transformer, "_is_parallelized", False),
         )
 
