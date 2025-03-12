@@ -65,34 +65,12 @@ def parallelize_transformer(transformer: WanTransformer3DModel, *, mesh=None):
         if encoder_hidden_states_image is not None:
             encoder_hidden_states = torch.concat([encoder_hidden_states_image, encoder_hidden_states], dim=1)
 
-        # handle case when seq_length is not a multiple of sp_world_size
-        seq_length = hidden_states.shape[-2]
-        padded_seq_length = seq_length
-        sp_world_size = dist.get_world_size(group=seq_mesh)
-        if seq_length % sp_world_size != 0:
-            padded_seq_length = ((seq_length // sp_world_size) + 1) * sp_world_size
-            padding_length = padded_seq_length - seq_length
-
-            b, c, s, d = rotary_emb.shape
-            rotary_emb = torch.cat(
-                [rotary_emb, torch.zeros(b, c, padding_length, d, device=rotary_emb.device, dtype=rotary_emb.dtype)],
-                dim=2,
-            )
-
-            b, s, d = hidden_states.shape
-            hidden_states = torch.cat(
-                [
-                    hidden_states,
-                    torch.zeros(b, padding_length, d, device=hidden_states.device, dtype=hidden_states.dtype),
-                ],
-                dim=1,
-            )
-
-        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
         timestep_proj = DP.get_assigned_chunk(timestep_proj, dim=0, group=batch_mesh)
         temb = DP.get_assigned_chunk(temb, dim=0, group=batch_mesh)
         hidden_states = DP.get_assigned_chunk(hidden_states, dim=0, group=batch_mesh)
         hidden_states = DP.get_assigned_chunk(hidden_states, dim=-2, group=seq_mesh)
+        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
+        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=-2, group=seq_mesh)
 
         # rotary_emb is broadcast across the batch dimension
         rotary_emb = DP.get_assigned_chunk(rotary_emb, dim=-2, group=seq_mesh)
@@ -109,10 +87,6 @@ def parallelize_transformer(transformer: WanTransformer3DModel, *, mesh=None):
 
         hidden_states = DP.get_complete_tensor(hidden_states, dim=-2, group=seq_mesh)
         hidden_states = DP.get_complete_tensor(hidden_states, dim=0, group=batch_mesh)
-
-        # remove padding if necessary
-        if padded_seq_length != seq_length:
-            hidden_states = hidden_states[:, :seq_length, ...]
 
         hidden_states = hidden_states.reshape(
             batch_size, post_patch_num_frames, post_patch_height, post_patch_width, p_t, p_h, p_w, -1

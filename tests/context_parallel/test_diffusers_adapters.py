@@ -234,8 +234,8 @@ class TestCogVideoXPipeline(_TestDiffusionPipeline):
         [
             # [False, False, None, None],
             # [False, True, None, None],
-            [True, False, 2, 2],
-            [True, True, 2, 2],
+            [True, False, None, 2],
+            [True, True, None, 2],
         ],
     )
     def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
@@ -245,13 +245,12 @@ class TestCogVideoXPipeline(_TestDiffusionPipeline):
 class TestWanVideoPipeline(_TestDiffusionPipeline):
     class Runner(DiffusionPipelineRunner):
         def new_pipe(self, dtype, device):
-            from diffusers import AutoencoderKLWan, WanPipeline
+            from diffusers import WanPipeline
             from diffusers.schedulers.scheduling_unipc_multistep import UniPCMultistepScheduler
 
             model_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
             # model_id = "Wan-AI/Wan2.1-T2V-14B-Diffusers"
-            vae = AutoencoderKLWan.from_pretrained(model_id, subfolder="vae", torch_dtype=torch.float32)
-            pipe = WanPipeline.from_pretrained(model_id, vae=vae, torch_dtype=dtype)
+            pipe = WanPipeline.from_pretrained(model_id, torch_dtype=dtype)
             pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config, flow_shift=3.0)
             pipe.to(f"{device}:{self.rank}")
             return pipe
@@ -261,7 +260,10 @@ class TestWanVideoPipeline(_TestDiffusionPipeline):
                 kwargs["num_inference_steps"] = 30
             return pipe(
                 prompt="A cat is doing an acrobatic dive into a swimming pool at the olympics",
-                num_frames=16,
+                negative_prompt="",
+                height=480,
+                width=832,
+                num_frames=81,
                 output_type="pil" if self.rank == 0 else "pt",
                 **kwargs,
             )
@@ -273,8 +275,8 @@ class TestWanVideoPipeline(_TestDiffusionPipeline):
         [
             # [False, False, None, None],
             # [False, True, None, None],
-            [True, False, None, None],
-            [True, True, None, None],
+            [True, False, 2, None],
+            [True, True, 2, None],
         ],
     )
     def test_benchmark_pipe(self, extras, dtype, device, parallelize, compile, max_batch_dim_size, max_ring_dim_size):
