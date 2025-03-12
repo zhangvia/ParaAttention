@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import DefaultDict, Dict
 
 import torch
-
+import weakref
 import para_attn.primitives as DP
 
 
@@ -127,7 +127,7 @@ class CachedTransformerBlocks(torch.nn.Module):
         return_hidden_states_only=False,
     ):
         super().__init__()
-        self.transformer = transformer
+        self.transformer = weakref.ref(transformer)
         self.transformer_blocks = transformer_blocks
         self.single_transformer_blocks = single_transformer_blocks
         self.residual_diff_threshold = residual_diff_threshold
