@@ -123,7 +123,7 @@ def apply_prev_hidden_states_residual(hidden_states, encoder_hidden_states):
 
 
 @torch.compiler.disable
-def get_can_use_cache(first_hidden_states_residual, threshold, parallelized=False):
+def get_can_use_cache(first_hidden_states_residual, parallelized=False):
     prev_first_hidden_states_residual = get_buffer("first_hidden_states_residual")
     can_use_cache = prev_first_hidden_states_residual is not None and are_two_tensors_similar(
         prev_first_hidden_states_residual,
