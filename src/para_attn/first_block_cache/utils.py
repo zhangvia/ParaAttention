@@ -71,8 +71,8 @@ def set_buffer(name, buffer):
 _current_cache_context = None
 
 
-def create_cache_context():
-    return CacheContext()
+def create_cache_context(*args, **kwargs):
+    return CacheContext(*args, **kwargs)
 
 
 def get_current_cache_context():
