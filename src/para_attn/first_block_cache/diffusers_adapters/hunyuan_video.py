@@ -15,8 +15,6 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 def apply_cache_on_transformer(
     transformer: HunyuanVideoTransformer3DModel,
-    *,
-    residual_diff_threshold=0.06,
 ):
     if getattr(transformer, "_is_cached", False):
         return transformer
@@ -190,6 +188,7 @@ def apply_cache_on_pipe(
     pipe: DiffusionPipeline,
     *,
     shallow_patch: bool = False,
+    residual_diff_threshold=0.06,
     **kwargs,
 ):
     if not getattr(pipe, "_is_cached", False):
@@ -197,7 +196,7 @@ def apply_cache_on_pipe(
 
         @functools.wraps(original_call)
         def new_call(self, *args, **kwargs):
-            with utils.cache_context(utils.create_cache_context()):
+            with utils.cache_context(utils.create_cache_context(residual_diff_threshold=residual_diff_threshold)):
                 return original_call(self, *args, **kwargs)
 
         pipe.__class__.__call__ = new_call
