@@ -2,22 +2,23 @@ import functools
 import unittest
 
 import torch
-from diffusers import DiffusionPipeline, MochiTransformer3DModel
+from diffusers import DiffusionPipeline, HunyuanVideoTransformer3DModel
 
 from para_attn.first_block_cache import utils
 
 
 def apply_cache_on_transformer(
-    transformer: MochiTransformer3DModel,
+    transformer: HunyuanVideoTransformer3DModel,
 ):
     if getattr(transformer, "_is_cached", False):
         return transformer
 
-    cached_transformer_blocks = torch.nn.ModuleList(
+    blocks = torch.nn.ModuleList(
         [
             utils.CachedTransformerBlocks(
-                transformer.transformer_blocks,
+                transformer.blocks,
                 transformer=transformer,
+                return_hidden_states_only=True,
             )
         ]
     )
@@ -32,8 +33,8 @@ def apply_cache_on_transformer(
     ):
         with unittest.mock.patch.object(
             self,
-            "transformer_blocks",
-            cached_transformer_blocks,
+            "blocks",
+            blocks,
         ):
             return original_forward(
                 *args,
@@ -51,7 +52,7 @@ def apply_cache_on_pipe(
     pipe: DiffusionPipeline,
     *,
     shallow_patch: bool = False,
-    residual_diff_threshold=0.06,
+    residual_diff_threshold=0.05,
     **kwargs,
 ):
     if not getattr(pipe, "_is_cached", False):

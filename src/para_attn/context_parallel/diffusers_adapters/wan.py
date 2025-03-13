@@ -3,14 +3,13 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-import torch.distributed as dist
 from diffusers import DiffusionPipeline, WanTransformer3DModel
 from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.utils import logging, scale_lora_layers, unscale_lora_layers, USE_PEFT_BACKEND
 
 import para_attn.primitives as DP
 from para_attn.context_parallel import init_context_parallel_mesh
-from para_attn.para_attn_interface import SparseKVAttnMode, UnifiedAttnMode
+from para_attn.para_attn_interface import UnifiedAttnMode
 
 logger = logging.get_logger(__name__)
 
@@ -32,6 +31,7 @@ def parallelize_transformer(transformer: WanTransformer3DModel, *, mesh=None):
         encoder_hidden_states_image: Optional[torch.Tensor] = None,
         return_dict: bool = True,
         attention_kwargs: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
         if attention_kwargs is not None:
             attention_kwargs = attention_kwargs.copy()
@@ -70,12 +70,11 @@ def parallelize_transformer(transformer: WanTransformer3DModel, *, mesh=None):
         hidden_states = DP.get_assigned_chunk(hidden_states, dim=0, group=batch_mesh)
         hidden_states = DP.get_assigned_chunk(hidden_states, dim=-2, group=seq_mesh)
         encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=0, group=batch_mesh)
-        encoder_hidden_states = DP.get_assigned_chunk(encoder_hidden_states, dim=-2, group=seq_mesh)
 
         # rotary_emb is broadcast across the batch dimension
         rotary_emb = DP.get_assigned_chunk(rotary_emb, dim=-2, group=seq_mesh)
 
-        with SparseKVAttnMode(), UnifiedAttnMode(mesh):
+        with UnifiedAttnMode(mesh, skip_small_kv=True):
             hidden_states = self.call_transformer_blocks(
                 hidden_states, encoder_hidden_states, timestep_proj, rotary_emb
             )
@@ -121,7 +120,7 @@ def parallelize_transformer(transformer: WanTransformer3DModel, *, mesh=None):
             ckpt_kwargs: Dict[str, Any] = {"use_reentrant": False}
 
             for block in self.blocks:
-                hidden_states, encoder_hidden_states = torch.utils.checkpoint.checkpoint(
+                hidden_states = torch.utils.checkpoint.checkpoint(
                     create_custom_forward(block),
                     hidden_states,
                     encoder_hidden_states,

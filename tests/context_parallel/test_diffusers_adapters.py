@@ -246,12 +246,12 @@ class TestWanVideoPipeline(_TestDiffusionPipeline):
     class Runner(DiffusionPipelineRunner):
         def new_pipe(self, dtype, device):
             from diffusers import WanPipeline
-            from diffusers.schedulers.scheduling_unipc_multistep import UniPCMultistepScheduler
+            # from diffusers.schedulers.scheduling_unipc_multistep import UniPCMultistepScheduler
 
             model_id = "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
             # model_id = "Wan-AI/Wan2.1-T2V-14B-Diffusers"
             pipe = WanPipeline.from_pretrained(model_id, torch_dtype=dtype)
-            pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config, flow_shift=3.0)
+            # pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config, flow_shift=3.0)
             pipe.to(f"{device}:{self.rank}")
             return pipe
 
@@ -259,7 +259,7 @@ class TestWanVideoPipeline(_TestDiffusionPipeline):
             if "num_inference_steps" not in kwargs:
                 kwargs["num_inference_steps"] = 30
             return pipe(
-                prompt="A cat is doing an acrobatic dive into a swimming pool at the olympics",
+                prompt="An astronaut dancing vigorously on the moon with earth flying past in the background, hyperrealistic",
                 negative_prompt="",
                 height=480,
                 width=832,
