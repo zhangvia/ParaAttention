@@ -299,9 +299,10 @@ class RingAttnMode(BaseTorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable
-    def __init__(self, mesh=None):
+    def __init__(self, mesh=None, *, skip_small_kv=False):
         super().__init__()
         self._mesh = mesh
+        self._skip_small_kv = skip_small_kv
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
@@ -310,6 +311,10 @@ class RingAttnMode(BaseTorchFunctionMode):
             return super().__torch_function__(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
+            if self._skip_small_kv:
+                query, key = _get_args(args, kwargs, "query", "key")
+                if query.shape[-2] > key.shape[-2]:
+                    return super().__torch_function__(func, types, args, kwargs)
             return self._call_ring_attn_func(*args, **kwargs)
 
         return super().__torch_function__(func, types, args, kwargs)
@@ -339,10 +344,11 @@ class UlyssesAttnMode(BaseTorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable
-    def __init__(self, mesh=None, *, attn_func=None):
+    def __init__(self, mesh=None, *, attn_func=None, skip_small_kv=False):
         super().__init__()
         self._mesh = mesh
         self._attn_func = attn_func
+        self._skip_small_kv = skip_small_kv
 
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
@@ -351,6 +357,10 @@ class UlyssesAttnMode(BaseTorchFunctionMode):
             return super().__torch_function__(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
+            if self._skip_small_kv:
+                query, key = _get_args(args, kwargs, "query", "key")
+                if query.shape[-2] > key.shape[-2]:
+                    return super().__torch_function__(func, types, args, kwargs)
             return self._call_ulysses_attn_func(*args, **kwargs)
 
         return super().__torch_function__(func, types, args, kwargs)
@@ -381,7 +391,7 @@ class UnifiedAttnMode(BaseTorchFunctionMode):
     disabled = False
 
     @torch.compiler.disable
-    def __init__(self, mesh=None):
+    def __init__(self, mesh=None, *, skip_small_kv=False):
         super().__init__()
 
         self._parallel_method = "ulysses"
@@ -409,6 +419,8 @@ class UnifiedAttnMode(BaseTorchFunctionMode):
                     self._ulysses_mesh is not None or self._ring_mesh is not None
                 ), "mesh must have ulysses or ring dim"
 
+        self._skip_small_kv = skip_small_kv
+
     def __torch_function__(self, func, types, args=(), kwargs=None):
         kwargs = {} if kwargs is None else kwargs
 
@@ -416,6 +428,10 @@ class UnifiedAttnMode(BaseTorchFunctionMode):
             return super().__torch_function__(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
+            if self._skip_small_kv:
+                query, key = _get_args(args, kwargs, "query", "key")
+                if query.shape[-2] > key.shape[-2]:
+                    return super().__torch_function__(func, types, args, kwargs)
             return self._call_unified_attn_func(*args, **kwargs)
 
         return super().__torch_function__(func, types, args, kwargs)

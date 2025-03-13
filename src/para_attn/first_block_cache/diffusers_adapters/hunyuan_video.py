@@ -24,7 +24,6 @@ def apply_cache_on_transformer(
             utils.CachedTransformerBlocks(
                 transformer.transformer_blocks + transformer.single_transformer_blocks,
                 transformer=transformer,
-                residual_diff_threshold=residual_diff_threshold,
             )
         ]
     )
