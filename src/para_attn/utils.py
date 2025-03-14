@@ -21,11 +21,12 @@ class BaseTorchFunctionMode(TorchFunctionMode):
     def __init__(self):
         super().__init__()
 
-    def __torch_function__(self, func, types, args=(), kwargs=None):
-        kwargs = {} if kwargs is None else kwargs
 
-        if func is torch.Tensor.unflatten:
-            # Reason: Unsupported: non-function or method super: <method 'unflatten' of 'torch._C.TensorBase' objects>
-            return torch.unflatten(*args, **kwargs)
+def base_handle_torch_function(self, func, types, args=(), kwargs=None):
+    kwargs = {} if kwargs is None else kwargs
 
-        return func(*args, **kwargs)
+    if func is torch.Tensor.unflatten:
+        # Reason: Unsupported: non-function or method super: <method 'unflatten' of 'torch._C.TensorBase' objects>
+        return torch.unflatten(*args, **kwargs)
+
+    return func(*args, **kwargs)

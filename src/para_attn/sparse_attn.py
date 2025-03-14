@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 import para_attn
 import para_attn.ops as para_attn_ops
-from para_attn.utils import BaseTorchFunctionMode
+from para_attn.utils import base_handle_torch_function, BaseTorchFunctionMode
 
 try:
     import torch.distributed.tensor.experimental._attention as torch_ring_attention
@@ -616,12 +616,12 @@ class SparseKVAttnMode(BaseTorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if SparseKVAttnMode.disabled:
-            return super().__torch_function__(func, types, args, kwargs)
+            return base_handle_torch_function(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             return sparse_kv_attn_func(*args, **kwargs, dispatch_to_custom_ops=self._dispatch_to_custom_ops)
 
-        return super().__torch_function__(func, types, args, kwargs)
+        return base_handle_torch_function(func, types, args, kwargs)
 
     @classmethod
     @contextlib.contextmanager
@@ -662,7 +662,7 @@ class StructSparseAttnMode(BaseTorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if StructSparseAttnMode.disabled:
-            return super().__torch_function__(func, types, args, kwargs)
+            return base_handle_torch_function(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             return struct_sparse_attn_func(
@@ -674,7 +674,7 @@ class StructSparseAttnMode(BaseTorchFunctionMode):
                 print_attn_weight_means=self._print_attn_weight_means,
             )
 
-        return super().__torch_function__(func, types, args, kwargs)
+        return base_handle_torch_function(func, types, args, kwargs)
 
     @classmethod
     @contextlib.contextmanager
@@ -717,7 +717,7 @@ class FocusAttnMode(BaseTorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if FocusAttnMode.disabled:
-            return super().__torch_function__(func, types, args, kwargs)
+            return base_handle_torch_function(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             return focus_attn_func(
@@ -730,7 +730,7 @@ class FocusAttnMode(BaseTorchFunctionMode):
                 print_attn_weight_means=self._print_attn_weight_means,
             )
 
-        return super().__torch_function__(func, types, args, kwargs)
+        return base_handle_torch_function(func, types, args, kwargs)
 
     @classmethod
     @contextlib.contextmanager

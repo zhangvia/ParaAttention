@@ -15,7 +15,12 @@ from para_attn.sparse_attn import (
     struct_sparse_attn_func,
     StructSparseAttnMode,
 )
-from para_attn.utils import BaseTorchFunctionMode, get_force_dispatch_to_custom_ops, torch_version_check
+from para_attn.utils import (
+    base_handle_torch_function,
+    BaseTorchFunctionMode,
+    get_force_dispatch_to_custom_ops,
+    torch_version_check,
+)
 
 try:
     from torch.distributed.tensor.experimental._attention import _templated_ring_attention
@@ -308,16 +313,16 @@ class RingAttnMode(BaseTorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if RingAttnMode.disabled:
-            return super().__torch_function__(func, types, args, kwargs)
+            return base_handle_torch_function(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             if self._skip_small_kv:
                 query, key = _get_args(args, kwargs, "query", "key")
                 if query.shape[-2] > key.shape[-2]:
-                    return super().__torch_function__(func, types, args, kwargs)
+                    return base_handle_torch_function(func, types, args, kwargs)
             return self._call_ring_attn_func(*args, **kwargs)
 
-        return super().__torch_function__(func, types, args, kwargs)
+        return base_handle_torch_function(func, types, args, kwargs)
 
     def _call_ring_attn_func(self, *args, **kwargs):
         mesh = self._mesh
@@ -354,16 +359,16 @@ class UlyssesAttnMode(BaseTorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if UlyssesAttnMode.disabled:
-            return super().__torch_function__(func, types, args, kwargs)
+            return base_handle_torch_function(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             if self._skip_small_kv:
                 query, key = _get_args(args, kwargs, "query", "key")
                 if query.shape[-2] > key.shape[-2]:
-                    return super().__torch_function__(func, types, args, kwargs)
+                    return base_handle_torch_function(func, types, args, kwargs)
             return self._call_ulysses_attn_func(*args, **kwargs)
 
-        return super().__torch_function__(func, types, args, kwargs)
+        return base_handle_torch_function(func, types, args, kwargs)
 
     def _call_ulysses_attn_func(self, *args, **kwargs):
         mesh = self._mesh
@@ -425,16 +430,16 @@ class UnifiedAttnMode(BaseTorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if UnifiedAttnMode.disabled:
-            return super().__torch_function__(func, types, args, kwargs)
+            return base_handle_torch_function(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             if self._skip_small_kv:
                 query, key = _get_args(args, kwargs, "query", "key")
                 if query.shape[-2] > key.shape[-2]:
-                    return super().__torch_function__(func, types, args, kwargs)
+                    return base_handle_torch_function(func, types, args, kwargs)
             return self._call_unified_attn_func(*args, **kwargs)
 
-        return super().__torch_function__(func, types, args, kwargs)
+        return base_handle_torch_function(func, types, args, kwargs)
 
     def _call_unified_attn_func(self, *args, **kwargs):
         func = F.scaled_dot_product_attention
@@ -497,12 +502,12 @@ class InBatchAttnMode(BaseTorchFunctionMode):
         kwargs = {} if kwargs is None else kwargs
 
         if InBatchAttnMode.disabled:
-            return super().__torch_function__(func, types, args, kwargs)
+            return base_handle_torch_function(func, types, args, kwargs)
 
         if func is F.scaled_dot_product_attention:
             return in_batch_attn_func(*args, **kwargs)
 
-        return super().__torch_function__(func, types, args, kwargs)
+        return base_handle_torch_function(func, types, args, kwargs)
 
     @classmethod
     @contextlib.contextmanager
