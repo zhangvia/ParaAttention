@@ -22,7 +22,7 @@ class BaseTorchFunctionMode(TorchFunctionMode):
         super().__init__()
 
 
-def base_handle_torch_function(self, func, types, args=(), kwargs=None):
+def base_handle_torch_function(func, types, args=(), kwargs=None):
     kwargs = {} if kwargs is None else kwargs
 
     if func is torch.Tensor.unflatten:
