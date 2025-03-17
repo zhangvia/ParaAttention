@@ -162,3 +162,5 @@ cython_debug/
 _version.py
 
 report*.html
+
+.DS_Store

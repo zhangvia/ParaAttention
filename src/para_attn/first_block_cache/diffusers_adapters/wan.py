@@ -52,7 +52,7 @@ def apply_cache_on_pipe(
     pipe: DiffusionPipeline,
     *,
     shallow_patch: bool = False,
-    residual_diff_threshold=0.05,
+    residual_diff_threshold=0.03,
     **kwargs,
 ):
     if not getattr(pipe, "_is_cached", False):
